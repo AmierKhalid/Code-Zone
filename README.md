@@ -157,5 +157,5 @@ npm run dev
 
 
 
-enhance this and put animations 
-but dont put any personal infos
+
+
