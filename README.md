@@ -1,6 +1,6 @@
 <h1 align="center">CODE-ZONE</h1>
 
-<p align="center"><i>Unleash Creativity, Build Seamlessly, Inspire Innovation</i></p>
+<p align="center"><i>a dead project has been revived</i></p>
 
 <p align="center">
   <img src="https://img.shields.io/github/last-commit/AmierKhalid/Code-Zone" />
@@ -26,3 +26,38 @@
   <img src="https://img.shields.io/badge/React Hook Form-EC5990?logo=reacthookform&logoColor=white" />
   <img src="https://img.shields.io/badge/Appwrite-F02E65?logo=appwrite&logoColor=white" />
 </p>
+
+## 📚 Table of Contents
+- [Overview](#overview)
+- [Getting Started](#getting-started)
+  - [Prerequisites](#prerequisites)
+  - [Installation](#installation)
+- [Usage](#usage)
+- [Testing](#testing)
+
+---
+
+## 🧭 Overview
+<p align="center">
+  <img src="https://readme-typing-svg.demolab.com?font=Inter&weight=600&size=22&pause=1000&color=3B82F6&center=true&vCenter=true&width=600&lines=Welcome+to+Code-Zone!;Build+Seamlessly%2C+Create+Boldly%2C+Explore+Endlessly." alt="Typing Animation" />
+</p>
+
+---
+
+## 🏁 Getting Started
+
+### 🔧 Prerequisites
+This project requires the following dependencies:
+
+- **Programming Language:** TypeScript  
+- **Package Manager:** npm  
+
+---
+
+## 📥 Installation
+Build Code-Zone from the source and install dependencies:
+
+### 1. Clone the repository:
+```sh
+git clone https://github.com/AmierKhalid/Code-Zone
+
