@@ -126,6 +126,34 @@ npm install
 npm run dev
 ```
 <!-- ========================================================= --> <!-- ❓ FAQ SECTION --> <!-- ========================================================= -->
+---
+
+## 🧩 Missing Features (Coming Soon)
+
+> These features are planned and actively being shaped to level up the project.
+
+### 🚀 Authentication
+- 🔐 **GitHub OAuth**
+- 🔑 **Google OAuth**
+- 🪪 Smooth onboarding experience
+
+### 👤 Developer Persona System
+- 🎭 **Custom developer character** setup  
+- ⭐ Skills, tags, personality traits  
+- 🗂️ Personalized profile card & badges  
+
+### 💬 Interaction Features
+- 📝 **Comments system**  
+- ❤️ Reactions + threaded replies  
+- 🔔 Activity notifications  
+
+### 🌐 Social Layer
+- 👥 **Following feature**  
+- 📢 Feed powered by who you follow  
+- 🔁 Realtime updates with Appwrite  
+
+---
+
 
 
 
