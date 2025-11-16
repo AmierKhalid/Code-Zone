@@ -1,64 +1,67 @@
 <!-- ========================================================= -->
-<!-- 🌟 GLOWING ANIMATED HEADER BANNER -->
+<!-- 🌟 ULTRA ANIMATED BANNER -->
 <!-- ========================================================= -->
 
 <p align="center">
-  <img src="https://capsule-render.vercel.app/api?type=waving&color=0:4f46e5,100:9333ea&height=250&section=header&text=CODE-ZONE&fontSize=60&fontColor=ffffff&animation=twinkling&fontAlignY=38" />
+  <img src="https://capsule-render.vercel.app/api?type=wave&height=260&color=0:7c3aed,100:4c1d95&text=CODE-ZONE&fontAlignY=40&fontSize=60&fontColor=ffffff&animation=twinkling" />
 </p>
 
 <p align="center">
-  <img src="https://readme-typing-svg.demolab.com?font=Inter&weight=700&size=28&duration=2600&pause=1200&color=A855F7&center=true&vCenter=true&width=800&lines=Unleash+Creativity;Build+Seamlessly;Inspire+Innovation;Welcome+to+Code-Zone" />
+  <img src="https://readme-typing-svg.demolab.com?font=Fira+Code&weight=700&size=26&duration=2200&pause=900&color=C084FC&center=true&vCenter=true&width=900&lines=Unleash+Creativity;Build+Seamlessly;Inspire+Innovation;Reviving+Ideas+With+Motion+%26+Style" />
 </p>
 
 ---
 
 <!-- ========================================================= -->
-<!-- 🧊 BENTO GRID: ABOUT SECTION -->
+<!-- 🎛️ BENTO GRID + GLITCH TITLE -->
 <!-- ========================================================= -->
 
-## 📦 About Code-Zone
+<h2 align="center">⚡ <span style="font-family: 'Fira Code';">BENTO OVERVIEW</span> ⚡</h2>
 
 <p align="center">
   <img src="https://img.shields.io/badge/Status-Active-9333ea?style=for-the-badge" />
-  <img src="https://img.shields.io/badge/Maintained-Yes-4f46e5?style=for-the-badge" />
-  <img src="https://img.shields.io/badge/Version-1.0.0-a855f7?style=for-the-badge" />
+  <img src="https://img.shields.io/badge/Version-1.0.0-7c3aed?style=for-the-badge" />
+  <img src="https://img.shields.io/badge/Mode-Revival-6d28d9?style=for-the-badge" />
 </p>
 
 <p align="center">
-  Code-Zone is a revived project built to push boundaries, spark creativity,  
-  and bring forgotten ideas back to life with animation, style, and flow ✨  
+  Code-Zone returns from the ashes — fully modernized, animated, and styled  
+  to spark <strong>creativity, innovation, and vibe</strong> ✨  
 </p>
 
 ---
 
 <!-- ========================================================= -->
-<!-- 💠 ANIMATED BENTO GRID -->
+<!-- 🔥 ANIMATED TECH STACK -->
 <!-- ========================================================= -->
 
 ## 🔥 Tech Stack
 
 <p align="center">
-  <img src="https://skillicons.dev/icons?i=ts,js,react,vite,postcss,tailwind,eslint,nodejs,markdown,json&theme=light&animation=fade" />
+  <img src="https://skillicons.dev/icons?i=ts,js,react,vite,tailwind,postcss,figma,github,git,eslint,nodejs,html,css&theme=light&animation=fade" />
 </p>
 
 <p align="center">
-  <img src="https://readme-typing-svg.demolab.com?font=Inter&size=18&duration=2000&pause=800&color=6366F1&center=true&vCenter=true&width=500&lines=TypeScript+%7C+React+%7C+Vite;TailwindCSS+%7C+PostCSS+%7C+ESLint;Modern+workflow.+Modern+stack." />
+  <img src="https://readme-typing-svg.demolab.com?font=Inter&size=18&duration=2000&pause=700&color=8b5cf6&center=true&vCenter=true&width=500&lines=React+%7C+Vite+%7C+TypeScript;TailwindCSS+%7C+Zod+%7C+ESLint;Beautiful+Code.+Beautiful+Experience." />
 </p>
 
 ---
 
 <!-- ========================================================= -->
-<!-- 🧭 TABLE OF CONTENTS -->
+<!-- 📚 TABLE OF CONTENTS -->
 <!-- ========================================================= -->
 
 ## 📚 Table of Contents
+
 - [Overview](#overview)
 - [Getting Started](#getting-started)
   - [Prerequisites](#prerequisites)
   - [Installation](#installation)
 - [Usage](#usage)
 - [Testing](#testing)
+- [Missing Features (Future Roadmap)](#missing-features-future-roadmap)
 - [FAQ](#faq)
+- [Stats](#stats)
 
 ---
 
@@ -68,9 +71,10 @@
 
 ## 🧭 Overview
 
-<p align="center">
-  <img src="https://readme-typing-svg.demolab.com?font=Inter&weight=600&size=22&pause=1000&color=14b8a6&center=true&vCenter=true&width=600&lines=Welcome+to+Code-Zone!;Where+code+meets+creativity+and+motion." />
-</p>
+Code-Zone is a modern development environment designed to make coding  
+**fun, fast, animated, and beautifully organized**.
+
+Perfect for personal projects, experiments, and creative coding sessions.
 
 ---
 
@@ -80,17 +84,34 @@
 
 ## 🏁 Getting Started
 
-### 🔧 Prerequisites
-This project requires:
+### 🔧 Prerequisites  
+Ensure you have:
 
 - Node.js  
-- TypeScript  
 - npm  
+- TypeScript  
+- Git  
 
 ---
 
 ## 📥 Installation
 
-### 1. Clone the repository
+### 1. Clone the repo:
 ```sh
 git clone https://github.com/AmierKhalid/Code-Zone
+```
+### 2. Move to the folder:
+```sh
+npm install
+```
+###▶️ Usage
+```sh
+npm run dev
+```
+<!-- ========================================================= --> <!-- ❓ FAQ SECTION --> <!-- ========================================================= -->
+❓ FAQ
+<details> <summary>✨ Why does Code-Zone exist?</summary> <br> Because creativity deserves a home with motion and vibe. </details> <details> <summary>🔧 Can I contribute?</summary> <br> Absolutely — fork it, build it, break it, fix it. </details> <details> <summary>🔥 Will more animations be added?</summary> <br> Oh yes. Even smoother, even wilder. </details>
+<!-- ========================================================= --> <!-- 📊 GITHUB STATS --> <!-- ========================================================= -->
+📊 Stats
+<p align="center"> <img height="160" src="https://github-readme-stats.vercel.app/api?username=AmierKhalid&show_icons=true&theme=react&hide_border=true" /> <img height="160" src="https://github-readme-stats.vercel.app/api/top-langs/?username=AmierKhalid&layout=compact&theme=react&hide_border=true" /> </p> <p align="center"> <img src="https://streak-stats.demolab.com?user=AmierKhalid&theme=nightowl&hide_border=true&border_radius=8" /> </p>
+<!-- ========================================================= --> <!-- 🌊 ANIMATED FOOTER WAVES --> <!-- ========================================================= --> <p align="center"> <img src="https://capsule-render.vercel.app/api?type=waving&height=150&section=footer&color=0:4c1d95,100:7c3aed" /> </p> ```
