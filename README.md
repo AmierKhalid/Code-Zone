@@ -35,9 +35,12 @@
 <!-- 💠 ANIMATED BENTO GRID -->
 <!-- ========================================================= -->
 
+---
+
 ## 🔥 Tech Stack
 
 <p align="center">
+  <!-- Main core tech icons -->
   <img src="https://skillicons.dev/icons?i=ts&theme=light" height="55" />
   <img src="https://skillicons.dev/icons?i=js&theme=light" height="55" />
   <img src="https://skillicons.dev/icons?i=react&theme=light" height="55" />
@@ -47,13 +50,25 @@
   <img src="https://skillicons.dev/icons?i=markdown&theme=light" height="55" />
 </p>
 
+<!-- Extra frameworks + tools -->
+<p align="center" style="margin-top: 10px;">
+
+  <!-- Appwrite -->
+  <img src="https://img.shields.io/badge/Appwrite-FF52A0?style=for-the-badge&logo=appwrite&logoColor=white" height="35" />
+
+  <!-- TanStack Query -->
+  <img src="https://img.shields.io/badge/TanStack%20Query-FF4154?style=for-the-badge&logo=reactquery&logoColor=white" height="35" />
+
+  <!-- shadcn/ui -->
+  <img src="https://img.shields.io/badge/shadcn/ui-000000?style=for-the-badge&logo=shadcnui&logoColor=white" height="35" />
+
+</p>
+
 <p align="center" style="font-size: 15px; color: #6366f1;">
   <i>Modern workflow. Modern stack.</i>
 </p>
 
-
 ---
-
 <!-- ========================================================= -->
 <!-- 🧭 TABLE OF CONTENTS -->
 <!-- ========================================================= -->
@@ -111,6 +126,7 @@ npm install
 npm run dev
 ```
 <!-- ========================================================= --> <!-- ❓ FAQ SECTION --> <!-- ========================================================= -->
+
 
 
 
