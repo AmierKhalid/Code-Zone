@@ -38,12 +38,19 @@
 ## 🔥 Tech Stack
 
 <p align="center">
-  <img src="https://skillicons.dev/icons?i=ts,js,react,vite,postcss,tailwind,eslint,nodejs,markdown,json&theme=light&animation=fade" />
+  <img src="https://skillicons.dev/icons?i=ts&theme=light" height="55" />
+  <img src="https://skillicons.dev/icons?i=js&theme=light" height="55" />
+  <img src="https://skillicons.dev/icons?i=react&theme=light" height="55" />
+  <img src="https://skillicons.dev/icons?i=vite&theme=light" height="55" />
+  <img src="https://skillicons.dev/icons?i=tailwind&theme=light" height="55" />
+  <img src="https://skillicons.dev/icons?i=nodejs&theme=light" height="55" />
+  <img src="https://skillicons.dev/icons?i=markdown&theme=light" height="55" />
 </p>
 
-<p align="center">
-  <img src="https://readme-typing-svg.demolab.com?font=Inter&size=18&duration=2000&pause=800&color=6366F1&center=true&vCenter=true&width=500&lines=TypeScript+%7C+React+%7C+Vite;TailwindCSS+%7C+PostCSS+%7C+ESLint;Modern+workflow.+Modern+stack." />
+<p align="center" style="font-size: 15px; color: #6366f1;">
+  <i>Modern workflow. Modern stack.</i>
 </p>
+
 
 ---
 
@@ -99,15 +106,11 @@ git clone https://github.com/AmierKhalid/Code-Zone
 ```sh
 npm install
 ```
-###▶️ Usage
+### ▶️ Usage
 ```sh
 npm run dev
 ```
 <!-- ========================================================= --> <!-- ❓ FAQ SECTION --> <!-- ========================================================= -->
-❓ FAQ
-<details> <summary>✨ Why does Code-Zone exist?</summary> <br> Because creativity deserves a home with motion and vibe. </details> <details> <summary>🔧 Can I contribute?</summary> <br> Absolutely — fork it, build it, break it, fix it. </details> <details> <summary>🔥 Will more animations be added?</summary> <br> Oh yes. Even smoother, even wilder. </details>
-<!-- ========================================================= --> <!-- 📊 GITHUB STATS --> <!-- ========================================================= -->
-📊 Stats
-<p align="center"> <img height="160" src="https://github-readme-stats.vercel.app/api?username=AmierKhalid&show_icons=true&theme=react&hide_border=true" /> <img height="160" src="https://github-readme-stats.vercel.app/api/top-langs/?username=AmierKhalid&layout=compact&theme=react&hide_border=true" /> </p> <p align="center"> <img src="https://streak-stats.demolab.com?user=AmierKhalid&theme=nightowl&hide_border=true&border_radius=8" /> </p>
-<!-- ========================================================= --> <!-- 🌊 ANIMATED FOOTER WAVES --> <!-- ========================================================= --> <p align="center"> <img src="https://capsule-render.vercel.app/api?type=waving&height=150&section=footer&color=0:4c1d95,100:7c3aed" /> </p> ```
+
+
 
