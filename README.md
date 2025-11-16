@@ -125,12 +125,11 @@ npm install
 ```sh
 npm run dev
 ```
-<!-- ========================================================= --> <!-- ❓ FAQ SECTION --> <!-- ========================================================= -->
 ---
 
 ## 🧩 Missing Features (Coming Soon)
 
-> These features are planned and actively being shaped to level up the project.
+> These features are planned and actively being shaped to level up the project as a next.js project
 
 ### 🚀 Authentication
 - 🔐 **GitHub OAuth**
@@ -153,6 +152,7 @@ npm run dev
 - 🔁 Realtime updates with Appwrite  
 
 ---
+
 
 
 
