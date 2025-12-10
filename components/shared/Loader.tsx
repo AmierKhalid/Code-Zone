@@ -5,7 +5,7 @@ const Loader = () => {
     <div className="flex-center w-full cursor-progress animate-pulse ">
       <img
         className="cursor-progress animate-pulse"
-        src="/public/assets/icons/loader.svg"
+        src="/icons/loader.svg"
         width={24}
         height={24}
       />

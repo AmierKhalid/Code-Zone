@@ -22,14 +22,15 @@ import { useSignUp } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
+import Loader from "@/components/shared/Loader";
+
 
 
 
 const page = () => {
 
-  const { signUp, isLoaded } = useSignUp();
+
   const router = useRouter();
-  const [showDialog, setShowDialog] = useState(false);
   
 
 
@@ -48,23 +49,7 @@ const page = () => {
 
   // 2. Define a submit handler.
   async function onSubmit(values: z.infer<typeof SignupValidation>) {
-    if(!isLoaded)  return;
-    //----------------After taking users input verification pop-up will be shown----------------//
-    // try{
-    //   await signUp.create({
-    //     firstName: values.name,
-    //     username: values.username,
-    //   emailAddress: values.email,
-    //   password: values.password,
-    //   });
-    //   await signUp.prepareEmailAddressVerification({
-    //     strategy:"email_code"
-    //   })
-    //   setShowDialog(true);
-    // }
-    // catch(error:any){
-    //   toast.error(error.message);
-    // }
+    
   }
 
   return (
@@ -136,7 +121,7 @@ const page = () => {
             )}
           />
           <Button type="submit" className="shad-button_primary w-full">
-            Sign up
+            Sign up 
           </Button>
 
           {/* Divider */}
