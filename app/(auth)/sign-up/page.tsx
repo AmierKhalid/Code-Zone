@@ -49,7 +49,7 @@ const page = () => {
   // 2. Define a submit handler.
   async function onSubmit(values: z.infer<typeof SignupValidation>) {
     if(!isLoaded)  return;
-
+    //----------------After taking users input verification pop-up will be shown----------------//
     // try{
     //   await signUp.create({
     //     firstName: values.name,
