@@ -11,4 +11,146 @@ generator client {
 
 datasource db {
   provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// enum ReactionType {
+//   LIKE
+//   LOVE
+//   LAUGH
+//   SAD
+//   ANGRY
+//   WOW
+// }
+
+//todo if you have any idea for more titles add it
+enum tilteType {
+  master_of_Code @map("master of code")
+  the_debuger    @map("the debuger")
+}
+
+//!!this is just initial scheme so use (db push) not migrate 
+model User {
+  id         String    @id @default(cuid())
+  name       String?
+  username   String?   @unique
+  email      String
+  bio        String?
+  title      tilteType
+  image      String? // avatar url
+  points     Int?      @default(0)
+  isVerified Boolean?  @default(false)
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  posts     Post[]    @relation("UserPosts")
+  comments  Comment[] @relation("UserComments")
+  likes     Like[]    @relation("UserLikes")
+  saves     Save[]    @relation("UserSaves")
+  followers Follow[]  @relation("FollowingTo")
+  following Follow[]  @relation("FollowingFrom")
+
+  // error/solution contributions 
+  errors    ErrorReport[] @relation("UserErrors")
+  solutions Solution[]    @relation("UserSolutions")
+}
+
+model Post {
+  id            String   @id @default(cuid())
+  authorId      String
+  caption       String?
+  content       String? // long text, body, or markdown
+  mediaUrl      String? // single media url; change to a separate model if you need many
+  likesCount    Int      @default(0)
+  commentsCount Int      @default(0)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  author   User      @relation("UserPosts", fields: [authorId], references: [id])
+  comments Comment[] @relation("PostComments")
+  likes    Like[]    @relation("PostLikes")
+  saves    Save[]    @relation("PostSaves")
+}
+
+model Comment {
+  id       String @id @default(cuid())
+  postId   String
+  authorId String
+
+  content    String
+  likesCount Int      @default(0)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  post   Post @relation("PostComments", fields: [postId], references: [id])
+  author User @relation("UserComments", fields: [authorId], references: [id])
+}
+
+model Like {
+  id        String   @id @default(cuid())
+  userId    String
+  postId    String? // like on a post OR:
+  createdAt DateTime @default(now())
+
+  user User  @relation("UserLikes", fields: [userId], references: [id])
+  post Post? @relation("PostLikes", fields: [postId], references: [id])
+
+  @@index([userId])
+  @@index([postId])
+}
+
+model Save {
+  id        String   @id @default(cuid())
+  userId    String
+  postId    String
+  createdAt DateTime @default(now())
+
+  user User @relation("UserSaves", fields: [userId], references: [id])
+  post Post @relation("PostSaves", fields: [postId], references: [id])
+
+  @@unique([userId, postId])
+  @@index([userId])
+  @@index([postId])
+}
+
+model Follow {
+  id          String   @id @default(cuid())
+  followerId  String // who follows
+  followingId String // who is followed
+  createdAt   DateTime @default(now())
+
+  follower  User @relation("FollowingFrom", fields: [followerId], references: [id])
+  following User @relation("FollowingTo", fields: [followingId], references: [id])
+
+  @@unique([followerId, followingId])
+  @@index([followerId])
+  @@index([followingId])
+}
+
+model ErrorReport {
+  id          String   @id @default(cuid())
+  authorId    String
+  title       String
+  description String?
+  code        String? // code snippet
+  isSolved    Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  author    User       @relation("UserErrors", fields: [authorId], references: [id])
+  solutions Solution[] @relation("ErrorSolutions")
+}
+
+model Solution {
+  id           String   @id @default(cuid())
+  errorId      String
+  authorId     String
+  content      String
+  isApproved   Boolean  @default(false)
+  erned_points Int
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  error  ErrorReport @relation("ErrorSolutions", fields: [errorId], references: [id])
+  author User        @relation("UserSolutions", fields: [authorId], references: [id])
 }
