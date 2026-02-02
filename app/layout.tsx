@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import { ReactNode } from "react";
-import { Toaster } from "../components/ui/sonner";
 import { ClerkProvider } from "@clerk/nextjs";
+import LogoutButton from "../components/ui/LogoutButton";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -14,22 +14,22 @@ const inter = Inter({
 
 export const metadata: Metadata = {
   title: "Code Zone",
-  description: "the best Plce for developers",
+  description: "the best Place for developers",
 };
 
 const RootLayout = ({ children }: { children: ReactNode }) => {
   return (
     <ClerkProvider>
-    <html lang="en">
-      <body className={`${inter.variable} font-inter antialiased`}>
-        <main className="">{children}</main>
-        <Toaster />
-      </body>
-    </html>
+      <html lang="en">
+        <body className={`${inter.variable} font-inter antialiased`}>
+          <main>{children}</main>
+
+          {/* Logout Button */}
+          <LogoutButton />
+        </body>
+      </html>
     </ClerkProvider>
   );
 };
+
 export default RootLayout;
-
-
-//first of all we need to change the website name,logo and the side image

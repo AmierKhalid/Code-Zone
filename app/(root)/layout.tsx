@@ -1,11 +1,9 @@
-import React, { ReactNode } from 'react'
+import { ClerkProvider } from "@clerk/nextjs";
 
-const layout = ({children}:{children:ReactNode}) => {
-  return (
-    <main>
-      {children}
-    </main>
-  )
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  return <>{children}</>;
 }
-
-export default layout

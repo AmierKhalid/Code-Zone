@@ -3,6 +3,7 @@
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
+
 import { Button } from "@/components/ui/button";
 import {
   Form,
@@ -13,17 +14,20 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+
 import { SigninValidation } from "@/lib/validations";
 import Link from "next/link";
 import VerificationDialog from "@/components/shared/VerificationDialog";
-import { useState } from "react";
 
-const page = () => {
+import { useEffect, useState } from "react";
+import { useSignIn, useUser } from "@clerk/nextjs";
+import { useRouter } from "next/navigation";
 
-  const [isDialogOpen,setIsDialogOpen]= useState(false)
+const Page = () => {
+  const router = useRouter();
+  const { signIn, isLoaded } = useSignIn();
+  const { isSignedIn, isLoaded: userLoaded } = useUser();
 
-
-  // 1. Define your form.
   const form = useForm<z.infer<typeof SigninValidation>>({
     resolver: zodResolver(SigninValidation),
     defaultValues: {
@@ -32,18 +36,33 @@ const page = () => {
     },
   });
 
-  // 2. Define a submit handler.
-  function onSubmit(values: z.infer<typeof SigninValidation>) {
-    //----------------After taking users input verification pop-up will be shown----------------//
-    // Do something with the form values.
-    // ✅ This will be type-safe and validated.
-    console.log(values);
-    setIsDialogOpen(true);
+  // ✅ Redirect لو المستخدم Logged In
+  useEffect(() => {
+    if (userLoaded && isSignedIn) {
+      router.replace("/");
+    }
+  }, [userLoaded, isSignedIn, router]);
+
+  async function onSubmit(values: z.infer<typeof SigninValidation>) {
+    if (!isLoaded || !signIn || isSignedIn) return;
+
+    try {
+      const result = await signIn.create({
+        identifier: values.email,
+        password: values.password,
+      });
+
+      if (result.status === "complete") {
+        router.replace("/"); // أو /dashboard
+      }
+    } catch (err: any) {
+      form.setError("password", {
+        message: err.errors?.[0]?.message || "Invalid email or password",
+      });
+    }
   }
 
-  const handleCloseDialog=()=>{
-    setIsDialogOpen(false)
-  }
+  if (!userLoaded) return null;
 
   return (
     <div className="flex flex-col w-full max-w-[420px] items-center px-4">
@@ -74,6 +93,7 @@ const page = () => {
               </FormItem>
             )}
           />
+
           <FormField
             control={form.control}
             name="password"
@@ -87,29 +107,43 @@ const page = () => {
               </FormItem>
             )}
           />
+
           <Button type="submit" className="shad-button_primary w-full">
             Sign in
           </Button>
+
           <VerificationDialog />
 
-          {/* Divider */}
           <div className="flex items-center gap-3 my-2">
             <div className="flex-1 h-px bg-dark-4"></div>
             <span className="text-light-4 text-sm">Or continue with</span>
             <div className="flex-1 h-px bg-dark-4"></div>
           </div>
 
-          {/* OAuth Buttons */}
           <div className="flex gap-3 w-full">
             <Button
               type="button"
+              onClick={() =>
+                signIn.authenticateWithRedirect({
+                  strategy: "oauth_google",
+                  redirectUrl: "/sign-in",
+                  redirectUrlComplete: "/",
+                })
+              }
               className="flex-1 bg-light-2 text-gray-700 border border-zinc-300 hover:bg-gray-100 hover:border-zinc-400 flex items-center justify-center gap-2"
             >
               <img src="/icons/google.svg" alt="Google" className="w-5 h-5" />
-              
             </Button>
+
             <Button
               type="button"
+              onClick={() =>
+                signIn.authenticateWithRedirect({
+                  strategy: "oauth_github",
+                  redirectUrl: "/sign-in",
+                  redirectUrlComplete: "/",
+                })
+              }
               className="flex-1 bg-[#24292F] text-white border border-zinc-700 hover:bg-[#1B1F23] hover:border-zinc-600 transition"
             >
               <img src="/icons/github.svg" alt="GitHub" className="w-5 h-5" />
@@ -125,11 +159,10 @@ const page = () => {
               Sign up
             </Link>
           </p>
-          
         </form>
       </Form>
     </div>
   );
 };
 
-export default page;
+export default Page;

@@ -16,27 +16,26 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 
-
 import Link from "next/link";
-import { useSignUp } from "@clerk/nextjs";
+import { useSignUp, useUser } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import Loader from "@/components/shared/Loader";
 
-
-
-
-const page = () => {
-
-
+const Page = () => {
   const router = useRouter();
-  
+  const { signUp, isLoaded } = useSignUp();
+  const { isSignedIn, isLoaded: userLoaded } = useUser();
+  const [loading, setLoading] = useState(false);
 
+  // 🔐 Block signed-in users
+  useEffect(() => {
+    if (userLoaded && isSignedIn) {
+      router.replace("/");
+    }
+  }, [userLoaded, isSignedIn, router]);
 
-
-
-  // 1. Define your form.
   const form = useForm<z.infer<typeof SignupValidation>>({
     resolver: zodResolver(SignupValidation),
     defaultValues: {
@@ -47,27 +46,49 @@ const page = () => {
     },
   });
 
-  // 2. Define a submit handler.
-  async function onSubmit(values: z.infer<typeof SignupValidation>) {
-    
-  }
+  const onSubmit = async (values: z.infer<typeof SignupValidation>) => {
+    if (!isLoaded || !signUp || isSignedIn) return;
+
+    try {
+      setLoading(true);
+
+      await signUp.create({
+        emailAddress: values.email,
+        password: values.password,
+        username: values.username,
+      });
+
+      await signUp.update({
+        firstName: values.name,
+      });
+
+      await signUp.prepareEmailAddressVerification({
+        strategy: "email_code",
+      });
+
+      toast.success("Check your email to verify your account 📩");
+      router.push("/verify-email");
+    } catch (error: any) {
+      const message =
+        error?.errors?.[0]?.message ||
+        "Signup failed. Please try again.";
+
+      toast.error(message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (!userLoaded) return null;
 
   return (
     <div className="flex flex-col w-full max-w-[420px] items-center px-4">
       <Form {...form}>
-        <div className="flex flex-col items-center w-full mb-6">
-          <h2 className="text-2xl font-semibold text-center mb-1">
-            Create a new account
-          </h2>
-          <p className="text-light-3 text-sm text-center">
-            Enter your information to get started
-          </p>
-        </div>
-
         <form
           onSubmit={form.handleSubmit(onSubmit)}
           className="flex flex-col gap-5 w-full"
         >
+        
           <FormField
             control={form.control}
             name="name"
@@ -75,12 +96,14 @@ const page = () => {
               <FormItem>
                 <FormLabel>Name</FormLabel>
                 <FormControl>
-                  <Input type="text" {...field} className="shad-input" />
+                  <Input {...field} autoComplete="name" />
                 </FormControl>
-                <FormMessage className="text-red" />
+                <FormMessage />
               </FormItem>
             )}
           />
+
+         
           <FormField
             control={form.control}
             name="username"
@@ -88,25 +111,29 @@ const page = () => {
               <FormItem>
                 <FormLabel>Username</FormLabel>
                 <FormControl>
-                  <Input type="text" {...field} className="shad-input" />
+                  <Input {...field} autoComplete="username" />
                 </FormControl>
-                <FormMessage className="text-red" />
+                <FormMessage />
               </FormItem>
             )}
           />
+
+          
           <FormField
             control={form.control}
             name="email"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>E-mail</FormLabel>
+                <FormLabel>Email</FormLabel>
                 <FormControl>
-                  <Input type="email" {...field} className="shad-input" />
+                  <Input type="email" {...field} autoComplete="email" />
                 </FormControl>
-                <FormMessage className="text-red" />
+                <FormMessage />
               </FormItem>
             )}
           />
+
+          {/* Password */}
           <FormField
             control={form.control}
             name="password"
@@ -114,59 +141,61 @@ const page = () => {
               <FormItem>
                 <FormLabel>Password</FormLabel>
                 <FormControl>
-                  <Input type="password" {...field} className="shad-input" />
+                  <Input
+                    type="password"
+                    {...field}
+                    autoComplete="new-password"
+                  />
                 </FormControl>
-                <FormMessage className="text-red" />
+                <FormMessage />
               </FormItem>
             )}
           />
-          <Button type="submit" className="shad-button_primary w-full">
-            Sign up 
+
+          <div id="clerk-captcha" />
+
+          <Button disabled={loading} className="w-full">
+            {loading ? <Loader /> : "Create account"}
           </Button>
 
-          {/* Divider */}
-          <div className="flex items-center gap-3 my-2">
-            <div className="flex-1 h-px bg-dark-4"></div>
-            <span className="text-light-4 text-sm">Or continue with</span>
-            <div className="flex-1 h-px bg-dark-4"></div>
-          </div>
+          {/* OAuth */}
+          <div className="flex gap-3">
+            <Button
+              type="button"
+              disabled={!isLoaded || loading}
+              onClick={() =>
+                signUp?.authenticateWithRedirect({
+                  strategy: "oauth_google",
+                  redirectUrl: "/sign-up",
+                  redirectUrlComplete: "/",
+                })
+              }
+              className="flex-1 bg-gray-100 text-black"
+            >
+              Google
+            </Button>
 
-          {/* OAuth Buttons */}
-          {/* <div className="flex gap-3 w-full">
             <Button
               type="button"
-              className="flex-1 bg-dark-3 hover:bg-dark-4 text-light-1 border border-dark-4"
+              disabled={!isLoaded || loading}
+              onClick={() =>
+                signUp?.authenticateWithRedirect({
+                  strategy: "oauth_github",
+                  redirectUrl: "/sign-up",
+                  redirectUrlComplete: "/",
+                })
+              }
+              className="flex-1 bg-black text-white"
             >
-              <img src="/icons/google.svg" alt="Google" className="w-5 h-5" />
-            </Button>
-            <Button
-              type="button"
-              className="flex-1 bg-dark-3 hover:bg-dark-4 text-light-1 border border-dark-4"
-            >
-              <img src="/icons/github.svg" alt="GitHub" className="w-5 h-5" />
-            </Button>
-          </div> */}
-          <div className="flex gap-3 w-full">
-            <Button
-              type="button"
-              className="flex-1 bg-light-2 text-gray-700 border border-zinc-300 hover:bg-gray-100 hover:border-zinc-400 flex items-center justify-center gap-2"
-            >
-              <img src="/icons/google.svg" alt="Google" className="w-5 h-5" />
-              
-            </Button>
-            <Button
-              type="button"
-              className="flex-1 bg-[#24292F] text-white border border-zinc-700 hover:bg-[#1B1F23] hover:border-zinc-600 transition"
-            >
-              <img src="/icons/github.svg" alt="GitHub" className="w-5 h-5" />
+              GitHub
             </Button>
           </div>
 
-          <p className="text-sm text-light-4 text-center ">
+          <p className="text-center text-sm">
             Already have an account?{" "}
             <Link
               href="/sign-in"
-              className="text-primary-500 font-semibold hover:underline"
+              className="text-primary-500 font-medium"
             >
               Log in
             </Link>
@@ -177,4 +206,4 @@ const page = () => {
   );
 };
 
-export default page;
+export default Page;
