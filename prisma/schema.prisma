@@ -23,25 +23,48 @@ datasource db {
 //   WOW
 // }
 
+enum Categories {
+  frontend
+  backend
+  problem_solving @map("problem solving")
+  ai_ml           @map("ai/ml")
+  mobile_dev      @map("mobile dev")
+}
+
+enum difficulties {
+  easy
+  medium
+  hard
+  expert
+}
+
 //todo if you have any idea for more titles add it
 enum tilteType {
   master_of_Code @map("master of code")
   the_debuger    @map("the debuger")
 }
 
+enum accountType {
+  standard
+  google
+  github
+}
+
 //!!this is just initial scheme so use (db push) not migrate 
 model User {
-  id         String    @id @default(cuid())
-  name       String?
-  username   String?   @unique
-  email      String
-  bio        String?
-  title      tilteType
-  image      String? // avatar url
-  points     Int?      @default(0)
-  isVerified Boolean?  @default(false)
-  createdAt  DateTime  @default(now())
-  updatedAt  DateTime  @updatedAt
+  id          String      @id @default(cuid())
+  accountId   String      @unique
+  accountType accountType @default(standard)
+  name        String?
+  username    String?     @unique
+  email       String      @unique
+  bio         String?
+  title       tilteType?
+  image       String? // avatar url
+  totalPoints Int?        @default(0)
+  isVerified  Boolean?    @default(false)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
 
   posts     Post[]    @relation("UserPosts")
   comments  Comment[] @relation("UserComments")
@@ -53,6 +76,10 @@ model User {
   // error/solution contributions 
   errors    ErrorReport[] @relation("UserErrors")
   solutions Solution[]    @relation("UserSolutions")
+
+  @@index([email])
+  @@index([username])
+  @@index([createdAt])
 }
 
 model Post {
@@ -128,17 +155,26 @@ model Follow {
 }
 
 model ErrorReport {
-  id          String   @id @default(cuid())
-  authorId    String
-  title       String
-  description String?
-  code        String? // code snippet
-  isSolved    Boolean  @default(false)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id                 String        @id @default(cuid())
+  authorId           String
+  title              String
+  description        String?
+  code               String? // code snippet
+  points             Int           @default(0) // Points awarded to solver based on difficulty
+  category           Categories?
+  difficulty         difficulties?
+  isSolved           Boolean       @default(false)
+  acceptedSolutionId String? // Track the accepted/best solution
+  createdAt          DateTime      @default(now())
+  updatedAt          DateTime      @updatedAt
 
-  author    User       @relation("UserErrors", fields: [authorId], references: [id])
+  author    User       @relation("UserErrors", fields: [authorId], references: [id], onDelete: Cascade)
   solutions Solution[] @relation("ErrorSolutions")
+
+  @@index([authorId])
+  @@index([difficulty])
+  @@index([isSolved])
+  @@index([createdAt])
 }
 
 model Solution {
@@ -146,11 +182,18 @@ model Solution {
   errorId      String
   authorId     String
   content      String
-  isApproved   Boolean  @default(false)
-  erned_points Int
-  createdAt    DateTime @default(now())
+  isApproved   Boolean  @default(false) // Marked as best solution by error author
+  rate         Float    @default(0) // Rating calculated by algorithm (0-5 stars)
+  earnedPoints Int      @default(0) // Actual points earned (error.points * rate multiplier)
   updatedAt    DateTime @updatedAt
+  createdAt    DateTime @default(now())
 
-  error  ErrorReport @relation("ErrorSolutions", fields: [errorId], references: [id])
-  author User        @relation("UserSolutions", fields: [authorId], references: [id])
+  error  ErrorReport @relation("ErrorSolutions", fields: [errorId], references: [id], onDelete: Cascade)
+  author User        @relation("UserSolutions", fields: [authorId], references: [id], onDelete: Cascade)
+
+  @@unique([errorId, authorId]) // One solution per error per user
+  @@index([errorId])
+  @@index([authorId])
+  @@index([isApproved])
+  @@index([createdAt])
 }
