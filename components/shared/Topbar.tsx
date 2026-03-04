@@ -1,48 +1,61 @@
+"use client";
 
-//-------------this is from the original project --------------------
-//-------------we will edit it to be compatible with nextjs app directory structure-------------------
+import Link from "next/link";
+import Image from "next/image";
+import { SignOutButton } from "@clerk/nextjs";
+import { useCurrentUser } from "@/hooks/useCurrentUser";
+import { Button } from "../ui/button";
 
+const Topbar: React.FC = () => {
+  const { user, isLoading } = useCurrentUser();
+  const displayName = user?.name ?? user?.username ?? "User";
+  const imageUrl = user?.image ?? "/icons/profile-placeholder.svg";
 
+  return (
+    <section className="topbar">
+      <div className="flex-between py-4 px-5">
+        <Link href="/" className="flex gap-3 items-center">
+          <Image
+            src="/images/logo.svg"
+            alt="Code-Zone Logo"
+            className="w-12 h-12"
+            width={130}
+            height={36}
+          />
+          <h1 className="text-[25px] font-bold whitespace-nowrap text-center">
+            Code-<span className="text-fuchsia-500">Zone</span>
+          </h1>
+        </Link>
 
-// import { useEffect } from 'react'
-// import { Link,useNavigate } from 'react-router-dom'
-// import { Button } from '../ui/button'
-// import { useSignOutAccount } from '@/lib/react-query/queries&mutations'
-// import { useUserContext } from '@/context/AuthContext'
-// import { getProfileImageUrl } from '@/lib/utils'
+        <div className="flex gap-4 items-center">
+          <SignOutButton signOutOptions={{ redirectUrl: "/sign-in" }}>
+            <Button variant="ghost" className="shad-button_ghost">
+              <Image
+                src="/icons/logout.svg"
+                alt="Logout"
+                width={20}
+                height={20}
+              />
+            </Button>
+          </SignOutButton>
 
-// const Topbar = () => {
-//   const { mutate: signOut, isSuccess} =useSignOutAccount();
-//   const navigate = useNavigate();
-//   const {user}= useUserContext();
-//   useEffect(() => {
-//     if (isSuccess) {
-//      navigate(0);
-//     }
-//   },[isSuccess])
-//   return (
-//     <section className='topbar'>
-//       <div className='flex-between py-4 px-5'>
-//         <Link to="/" className='flex gap-3 items-center ' >
-//         <img className='w-12 h-12' src="/public/assets/images/logo.svg" alt="" 
-//         height={325}
-//         width={130}/>
-//                             <h1 className="text-[25px] te font-bold whitespace-nowrap text-center">
-//               Code-<span className="text-fuchsia-500">Zone</span>
-//             </h1>
-//         </Link>
-//         <div className='flex gap-4'>
-//           <Button variant="ghost" className='shad-button_ghost' onClick={()=>signOut()}>
-//             <img src='/public/assets/icons/logout.svg'/>
-//           </Button>
-//           <Link to={`/profile/${user.id}`} className='flex-center gap-3'>
-//           <img
-//           src={getProfileImageUrl(user)} className='h-8 w-8 rounded-full'/>
-//           </Link>
-//         </div>
-//       </div>
-//     </section>
-//   )
-// }
+          {isLoading ? (
+            <div className="h-8 w-8 rounded-full bg-dark-4 animate-pulse" />
+          ) : (
+            <Link href={user ? `/profile/${user.id}` : "/sign-in"}>
+              <Image
+                src={imageUrl}
+                alt={displayName}
+                className="h-8 w-8 rounded-full object-cover"
+                width={32}
+                height={32}
+              />
+            </Link>
+          )}
+        </div>
+      </div>
+    </section>
+  );
+};
 
-// export default Topbar
+export default Topbar;

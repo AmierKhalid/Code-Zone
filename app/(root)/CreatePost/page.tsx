@@ -2,8 +2,8 @@ import React from 'react'
 
 const page = () => {
   return (
-    <div className='flex justify-center items-center min-h-screen'>
-      Craete post
+    <div className='min-h-screen flex flex-1 items-center justify-center flex-col'>
+      Create post
     </div>
   )
 }

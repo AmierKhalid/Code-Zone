@@ -1,4 +1,3 @@
-// export { default as Loader } from "./Loader";
 export const sidebarLinks = [
   {
     imgURL: "/icons/home.svg",
@@ -16,7 +15,7 @@ export const sidebarLinks = [
     label: "Let't Hunt",
   },
   {
-    imgURL: "/icons/bookmark.svg",
+    imgURL: "/icons/chat.svg",
     route: "/Message",
     label: "Message",
   },
@@ -29,25 +28,28 @@ export const sidebarLinks = [
 
 export const bottombarLinks = [
   {
+    imgURL: "/icons/wallpaper.svg",
+    route: "/Explore",
+    label: "Explore",
+  },
+  {
+    imgURL: "/icons/people.svg",
+    route: "/Errors",
+    label: "Let't Hunt",
+  },
+  {
     imgURL: "/icons/home.svg",
     route: "/",
     label: "Home",
   },
   {
-    imgURL: "/icons/wallpaper.svg",
-    route: "/explore",
-    label: "Explore",
-  },
-  {
-    imgURL: "/icons/bookmark.svg",
-    route: "/saved",
-    label: "Saved",
+    imgURL: "/icons/chat.svg",
+    route: "/Message",
+    label: "Message",
   },
   {
     imgURL: "/icons/gallery-add.svg",
-    route: "/create-post",
+    route: "/CreatePost",
     label: "Create",
   },
 ];
-
-

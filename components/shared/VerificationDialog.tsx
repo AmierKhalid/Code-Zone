@@ -1,156 +1,18 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-
-import { CheckIcon, MailIcon } from "lucide-react";
-
+import { MailIcon } from "lucide-react";
 import { OTPInput, type SlotProps } from "input-otp";
-
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
-  DialogClose,
   DialogContent,
   DialogDescription,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog";
-
-import { cn } from "@/lib/utils";
-
-const CORRECT_CODE = "11208";
-
-const VerificationDialog = () => {
-  const [value, setValue] = useState("");
-  const [hasGuessed, setHasGuessed] = useState<undefined | boolean>(undefined);
-  const inputRef = useRef<HTMLInputElement>(null);
-  const closeButtonRef = useRef<HTMLButtonElement>(null);
-
-  useEffect(() => {
-    if (hasGuessed) {
-      closeButtonRef.current?.focus();
-    }
-  }, [hasGuessed]);
-
-  async function onSubmit(e?: React.FormEvent<HTMLFormElement>) {
-    e?.preventDefault?.();
-
-    inputRef.current?.select();
-    await new Promise((r) => setTimeout(r, 1_00));
-
-    setHasGuessed(value === CORRECT_CODE);
-
-    setValue("");
-    setTimeout(() => {
-      inputRef.current?.blur();
-    }, 20);
-  }
-
-  return (
-    <Dialog>
-      <DialogTrigger asChild>
-        <Button
-          className="shad-button_primary"
-        >
-          Test pop-up
-        </Button>
-      </DialogTrigger>
-      <DialogContent className="sm:max-w-md bg-dark-2 border-dark-4">
-        <div className="flex flex-col items-center gap-2">
-          <div
-            className={cn(
-              "flex size-10 shrink-0 items-center justify-center rounded-full bg-primary-500/10",
-              { "bg-primary-500/20": hasGuessed }
-            )}
-            aria-hidden="true"
-          >
-            {hasGuessed ? (
-              <CheckIcon className="text-primary-500" strokeWidth={1} />
-            ) : (
-              <MailIcon className="text-primary-500" strokeWidth={1} />
-            )}
-          </div>
-          <DialogHeader>
-            <DialogTitle className="sm:text-center text-light-1">
-              {hasGuessed ? "Account verified!" : "Check Your Email"}
-            </DialogTitle>
-            <DialogDescription className="sm:text-center text-light-3">
-              {hasGuessed ? (
-                <span>
-                  Congratulations! your email account{" "}
-                  <strong className="text-light-1">Ami*******ed@gmail.com</strong>{" "}
-                  has been verified
-                </span>
-              ) : (
-                <span>
-                  We have sent a verification code to{" "}
-                  <strong className="text-light-1">Ami*******ed@gmail.com</strong>.
-                  Please check your inbox and input the code below to activate
-                  your account. Try {CORRECT_CODE}
-                </span>
-              )}
-            </DialogDescription>
-          </DialogHeader>
-        </div>
-
-        {hasGuessed ? (
-          <div className="text-center">
-            <DialogClose asChild>
-              <Button
-                type="button"
-                ref={closeButtonRef}
-                className="bg-primary-500 hover:bg-primary-600 text-light-1"
-              >
-                Continue
-              </Button>
-            </DialogClose>
-          </div>
-        ) : (
-          <div className="space-y-4">
-            <div className="flex justify-center">
-              <OTPInput
-                id="confirmation-code"
-                ref={inputRef}
-                value={value}
-                onChange={setValue}
-                containerClassName="flex items-center gap-3 has-disabled:opacity-50"
-                maxLength={5}
-                onFocus={() => setHasGuessed(undefined)}
-                render={({ slots }) => (
-                  <div className="flex gap-2">
-                    {slots.map((slot, idx) => (
-                      <Slot key={idx} {...slot} />
-                    ))}
-                  </div>
-                )}
-                onComplete={onSubmit}
-              />
-            </div>
-            {hasGuessed === false && (
-              <p
-                className="text-red text-center text-xs"
-                role="alert"
-                aria-live="polite"
-              >
-                Invalid code. Please try again.
-              </p>
-            )}
-            <p className="text-center text-sm text-light-3">
-              Didn't get a code?{" "}
-              <a
-                className="text-primary-500 hover:text-primary-600 hover:underline"
-                href="#"
-              >
-                Resend
-              </a>
-            </p>
-          </div>
-        )}
-      </DialogContent>
-    </Dialog>
-  );
-};
+import { cn, maskEmail } from "@/lib/utils";
+import type { verificationProps } from "@/app/types";
 
 function Slot(props: SlotProps) {
   return (
@@ -168,4 +30,124 @@ function Slot(props: SlotProps) {
   );
 }
 
-export default VerificationDialog;
+export default function VerificationDialog({
+  isOpen,
+  email,
+  onClose,
+  onComplete,
+  onResend,
+  resendColldown = 60,
+}: verificationProps) {
+  const [value, setValue] = useState("");
+  const [isVerifying, setIsVerifying] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [cooldown, setCooldown] = useState(0);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const maskedEmail = email ? maskEmail(email) : "";
+
+  useEffect(() => {
+    if (!isOpen) {
+      setValue("");
+      setError(null);
+    }
+  }, [isOpen]);
+
+  useEffect(() => {
+    if (cooldown <= 0) return;
+    const timer = setInterval(() => setCooldown((c) => c - 1), 1000);
+    return () => clearInterval(timer);
+  }, [cooldown]);
+
+  async function handleComplete(code: string) {
+    if (!code || isVerifying) return;
+    setIsVerifying(true);
+    setError(null);
+    try {
+      await onComplete(code);
+      onClose();
+    } catch {
+      setError("Invalid code. Please try again.");
+      setValue("");
+    } finally {
+      setIsVerifying(false);
+    }
+  }
+
+  async function handleResend() {
+    if (cooldown > 0 || !onResend) return;
+    try {
+      await onResend();
+      setCooldown(resendColldown);
+    } catch {
+      setError("Failed to resend. Try again.");
+    }
+  }
+
+  return (
+    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
+      <DialogContent className="sm:max-w-md bg-dark-2 border-dark-4">
+        <div className="flex flex-col items-center gap-2">
+          <div
+            className="flex size-10 shrink-0 items-center justify-center rounded-full bg-primary-500/10"
+            aria-hidden="true"
+          >
+            <MailIcon className="text-primary-500" strokeWidth={1} />
+          </div>
+          <DialogHeader>
+            <DialogTitle className="sm:text-center text-light-1">
+              Check Your Email
+            </DialogTitle>
+            <DialogDescription className="sm:text-center text-light-3">
+              We have sent a verification code to{" "}
+              <strong className="text-light-1">{maskedEmail}</strong>. Please
+              check your inbox and enter the code below.
+            </DialogDescription>
+          </DialogHeader>
+        </div>
+
+        <div className="space-y-4">
+          <div className="flex justify-center">
+            <OTPInput
+              id="confirmation-code"
+              ref={inputRef}
+              value={value}
+              onChange={setValue}
+              containerClassName="flex items-center gap-3 has-disabled:opacity-50"
+              maxLength={6}
+              render={({ slots }) => (
+                <div className="flex gap-2">
+                  {slots.map((slot, idx) => (
+                    <Slot key={idx} {...slot} />
+                  ))}
+                </div>
+              )}
+              onComplete={(code) => handleComplete(code)}
+              disabled={isVerifying}
+            />
+          </div>
+          {error && (
+            <p
+              className="text-red text-center text-xs"
+              role="alert"
+              aria-live="polite"
+            >
+              {error}
+            </p>
+          )}
+          <p className="text-center text-sm text-light-3">
+            Didn&apos;t get a code?{" "}
+            <button
+              type="button"
+              className="text-primary-500 hover:text-primary-600 hover:underline disabled:opacity-50 disabled:cursor-not-allowed"
+              onClick={handleResend}
+              disabled={cooldown > 0 || !onResend}
+            >
+              {cooldown > 0 ? `Resend in ${cooldown}s` : "Resend"}
+            </button>
+          </p>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}

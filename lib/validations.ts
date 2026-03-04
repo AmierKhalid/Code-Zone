@@ -9,6 +9,6 @@ import { z } from "zod";
 })
   export const SigninValidation = z.object({
     email:z.string().email(),
-    password: z.string().min(8,{message:"protect your account idiot!, at least 8 characters!"}),
+    password: z.string().min(8,{message:"too short!, at least 8 characters!"}),
     
 })
