@@ -233,8 +233,8 @@
 
   /* Bottom bar */
   .bottom-bar {
-    /* always sit at the viewport bottom */
-    @apply z-50 flex-between w-full fixed bottom-0 rounded-t-[20px] bg-dark-2 px-5 py-4 md:hidden ;
+    /* always sit at the viewport bottom with a modern translucent backdrop */
+    @apply z-50 flex-between w-full fixed bottom-0 rounded-t-[20px] bg-dark-2/90 backdrop-blur-sm shadow-lg px-5 py-4 md:hidden;
   }
 
   /* File uploader */
