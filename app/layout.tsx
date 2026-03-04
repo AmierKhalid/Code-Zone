@@ -3,7 +3,7 @@ import { Inter } from "next/font/google";
 import "./globals.css";
 import { ReactNode } from "react";
 import { ClerkProvider } from "@clerk/nextjs";
-import LogoutButton from "../components/ui/LogoutButton";
+import { Toaster } from "@/components/ui/sonner";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -23,9 +23,7 @@ const RootLayout = ({ children }: { children: ReactNode }) => {
       <html lang="en">
         <body className={`${inter.variable} font-inter antialiased`}>
           <main>{children}</main>
-
-          {/* Logout Button */}
-          <LogoutButton />
+          <Toaster richColors position="top-center" />
         </body>
       </html>
     </ClerkProvider>

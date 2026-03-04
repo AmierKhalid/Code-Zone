@@ -3,6 +3,12 @@
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
+import { useSignIn } from "@clerk/nextjs";
+import { useRouter } from "next/navigation";
+import { useState } from "react";
+import { toast } from "sonner";
+import Link from "next/link";
+import type { EmailCodeFactor } from "@clerk/types";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -14,19 +20,23 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-
 import { SigninValidation } from "@/lib/validations";
-import Link from "next/link";
+import Loader from "@/components/shared/Loader";
 import VerificationDialog from "@/components/shared/VerificationDialog";
+import { saveUserToDB } from "@/app/actions/userAction";
 
-import { useEffect, useState } from "react";
-import { useSignIn, useUser } from "@clerk/nextjs";
-import { useRouter } from "next/navigation";
-
-const Page = () => {
+export default function SignInPage() {
   const router = useRouter();
-  const { signIn, isLoaded } = useSignIn();
-  const { isSignedIn, isLoaded: userLoaded } = useUser();
+  const { isLoaded, signIn, setActive } = useSignIn();
+
+  const [isLoading, setIsLoading] = useState(false);
+  const [isOAuthLoading, setIsOAuthLoading] = useState(false);
+  const [showSecondFactor, setShowSecondFactor] = useState(false);
+  const [showVerification, setShowVerification] = useState(false);
+  const [pendingEmail, setPendingEmail] = useState("");
+  const [secondFactorEmailId, setSecondFactorEmailId] = useState<string | null>(
+    null
+  );
 
   const form = useForm<z.infer<typeof SigninValidation>>({
     resolver: zodResolver(SigninValidation),
@@ -36,33 +46,191 @@ const Page = () => {
     },
   });
 
-  // ✅ Redirect لو المستخدم Logged In
-  useEffect(() => {
-    if (userLoaded && isSignedIn) {
-      router.replace("/");
-    }
-  }, [userLoaded, isSignedIn, router]);
-
   async function onSubmit(values: z.infer<typeof SigninValidation>) {
-    if (!isLoaded || !signIn || isSignedIn) return;
-
+    if (!isLoaded || !signIn) return;
+    setIsLoading(true);
     try {
-      const result = await signIn.create({
+      const signInAttempt = await signIn.create({
         identifier: values.email,
         password: values.password,
       });
 
-      if (result.status === "complete") {
-        router.replace("/"); // أو /dashboard
+      if (signInAttempt.status === "complete") {
+        await setActive({
+          session: signInAttempt.createdSessionId,
+        });
+        const saveResult = await saveUserToDB();
+        if (!saveResult.success) toast.error(saveResult.error);
+        toast.success("Welcome back!");
+        router.push("/");
+        return;
+      }
+
+      // a user can be required to verify their email before the session is
+      // activated. we treat this like second‑factor but reuse the same dialog.
+      // Clerk types omit "needs_email_verification" but the API can return it at runtime
+      if ((signInAttempt.status as string) === "needs_email_verification") {
+        await (signIn as any).prepareEmailAddressVerification({
+          strategy: "email_code",
+        });
+        setPendingEmail(values.email);
+        setShowVerification(true);
+        return;
+      }
+
+      if (signInAttempt.status === "needs_second_factor") {
+        const emailCodeFactor = signInAttempt.supportedSecondFactors?.find(
+          (factor): factor is EmailCodeFactor =>
+            factor.strategy === "email_code"
+        );
+        if (emailCodeFactor) {
+          await signIn.prepareSecondFactor({
+            strategy: "email_code",
+            emailAddressId: emailCodeFactor.emailAddressId,
+          });
+          setPendingEmail(values.email);
+          setSecondFactorEmailId(emailCodeFactor.emailAddressId);
+          setShowSecondFactor(true);
+        } else {
+          toast.error("Additional verification is required.");
+        }
+      } else {
+        toast.error("Sign-in could not be completed. Please try again.");
       }
     } catch (err: any) {
-      form.setError("password", {
-        message: err.errors?.[0]?.message || "Invalid email or password",
-      });
+      const clerkError = err?.errors?.[0];
+      const longMessage = (clerkError?.longMessage as string | undefined) ?? "";
+
+      // Prefer Clerk's detailed error message (e.g. password / email issues)
+      const message =
+        longMessage ||
+        (err instanceof Error ? err.message : "Invalid email or password");
+      toast.error(message);
+    } finally {
+      setIsLoading(false);
     }
   }
 
-  if (!userLoaded) return null;
+  async function handleSecondFactorComplete(code: string) {
+    if (!signIn || !setActive) return;
+    try {
+      const result = await signIn.attemptSecondFactor({
+        strategy: "email_code",
+        code,
+      });
+      if (result.status === "complete" && result.createdSessionId) {
+        await setActive({ session: result.createdSessionId });
+        await saveUserToDB();
+        setShowSecondFactor(false);
+        toast.success("Welcome back!");
+        router.push("/");
+      }
+    } catch {
+      throw new Error("Invalid code");
+    }
+  }
+
+  async function handleResendSecondFactor() {
+    if (!signIn || !secondFactorEmailId) return;
+    await signIn.prepareSecondFactor({
+      strategy: "email_code",
+      emailAddressId: secondFactorEmailId,
+    });
+  }
+
+  async function handleVerificationComplete(code: string) {
+    if (!signIn || !setActive) return;
+    try {
+      const result = await signIn.attemptFirstFactor({ strategy: "email_code", code });
+      if (result.status === "complete" && result.createdSessionId) {
+        await setActive({ session: result.createdSessionId });
+        const saveResult = await saveUserToDB();
+        if (!saveResult.success) toast.error(saveResult.error);
+        setShowVerification(false);
+        toast.success("Welcome back!");
+        router.push("/");
+      }
+    } catch {
+      throw new Error("Invalid code");
+    }
+  }
+
+  async function handleResendVerification() {
+    if (!signIn) return;
+    await (signIn as any).prepareEmailAddressVerification({
+      strategy: "email_code",
+    });
+  }
+
+  async function handleOAuthSignIn(strategy: "oauth_google" | "oauth_github", e: React.MouseEvent) {
+    e.preventDefault();
+    if (!signIn || isOAuthLoading) return;
+    setIsOAuthLoading(true);
+    const providerName = strategy === "oauth_google" ? "Google" : "GitHub";
+
+    try {
+      // show a promise toast while the redirect request is being sent
+      await toast.promise(
+        signIn.authenticateWithRedirect({
+          strategy,
+          redirectUrl: "/sso-callback",
+          redirectUrlComplete: "/",
+        }),
+        {
+          loading: `Signing in with ${providerName}...`,
+          success: `Redirecting to ${providerName}...`,
+          error: `${providerName} sign-in failed`,
+        }
+      );
+      // note: after a successful redirect the app will unload, so we don't need
+      // additional success handling here. isOAuthLoading will be reset if the
+      // user returns due to error.
+    } catch (err: any) {
+      console.error("OAuth sign-in error:", err);
+      // toast.promise already displayed an error message, but we ensure the detailed
+      // message is there as well.
+      toast.error(
+        `${providerName} sign-in failed: ${
+          err.errors?.[0]?.longMessage || err.message || "Unknown error"
+        }`
+      );
+      setIsOAuthLoading(false);
+    }
+  }
+
+  if (!isLoaded) {
+    return (
+      <div className="flex-center w-full">
+        <Loader />
+      </div>
+    );
+  }
+
+  if (showSecondFactor || showVerification) {
+    return (
+      <div className="flex flex-col w-full max-w-[420px] items-center px-4">
+        <VerificationDialog
+          isOpen={showSecondFactor || showVerification}
+          email={pendingEmail}
+          onClose={() => {
+            setShowSecondFactor(false);
+            setShowVerification(false);
+          }}
+          onComplete={
+            showSecondFactor
+              ? handleSecondFactorComplete
+              : handleVerificationComplete
+          }
+          onResend={
+            showSecondFactor
+              ? handleResendSecondFactor
+              : handleResendVerification
+          }
+          resendColldown={60}
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col w-full max-w-[420px] items-center px-4">
@@ -93,7 +261,6 @@ const Page = () => {
               </FormItem>
             )}
           />
-
           <FormField
             control={form.control}
             name="password"
@@ -107,51 +274,46 @@ const Page = () => {
               </FormItem>
             )}
           />
-
-          <Button type="submit" className="shad-button_primary w-full">
-            Sign in
+          <Button
+            type="submit"
+            className="shad-button_primary w-full"
+            disabled={isLoading}
+          >
+            {isLoading ? <Loader /> : "Sign in"}
           </Button>
-
-          <VerificationDialog />
-
           <div className="flex items-center gap-3 my-2">
             <div className="flex-1 h-px bg-dark-4"></div>
             <span className="text-light-4 text-sm">Or continue with</span>
             <div className="flex-1 h-px bg-dark-4"></div>
           </div>
-
           <div className="flex gap-3 w-full">
             <Button
               type="button"
-              onClick={() =>
-                signIn.authenticateWithRedirect({
-                  strategy: "oauth_google",
-                  redirectUrl: "/sign-in",
-                  redirectUrlComplete: "/",
-                })
-              }
+              variant="outline"
+              disabled={isOAuthLoading}
               className="flex-1 bg-light-2 text-gray-700 border border-zinc-300 hover:bg-gray-100 hover:border-zinc-400 flex items-center justify-center gap-2"
+              onClick={(e) => handleOAuthSignIn("oauth_google", e)}
             >
-              <img src="/icons/google.svg" alt="Google" className="w-5 h-5" />
-            </Button>
 
+
+                <img src="/icons/google.svg" alt="Google" className="w-5 h-5" />
+
+            </Button>
             <Button
               type="button"
-              onClick={() =>
-                signIn.authenticateWithRedirect({
-                  strategy: "oauth_github",
-                  redirectUrl: "/sign-in",
-                  redirectUrlComplete: "/",
-                })
-              }
-              className="flex-1 bg-[#24292F] text-white border border-zinc-700 hover:bg-[#1B1F23] hover:border-zinc-600 transition"
+              variant="outline"
+              disabled={isOAuthLoading}
+              className="flex-1 bg-[#24292F] text-white border border-zinc-700 hover:bg-[#1B1F23] hover:border-zinc-600 transition flex items-center justify-center gap-2"
+              onClick={(e) => handleOAuthSignIn("oauth_github", e)}
             >
-              <img src="/icons/github.svg" alt="GitHub" className="w-5 h-5" />
+
+                <img src="/icons/github.svg" alt="GitHub" className="w-5 h-5" />
+
             </Button>
           </div>
 
           <p className="text-sm text-light-4 text-center mt-4">
-            Don't have an account?{" "}
+            Don&apos;t have an account?{" "}
             <Link
               href="/sign-up"
               className="text-primary-500 font-semibold hover:underline"
@@ -159,10 +321,11 @@ const Page = () => {
               Sign up
             </Link>
           </p>
+
         </form>
+
       </Form>
     </div>
   );
-};
+}
 
-export default Page;

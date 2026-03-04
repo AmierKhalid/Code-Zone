@@ -21,6 +21,7 @@ const Topbar: React.FC = () => {
             className="w-12 h-12"
             width={130}
             height={36}
+
           />
           <h1 className="text-[25px] font-bold whitespace-nowrap text-center">
             Code-<span className="text-fuchsia-500">Zone</span>
@@ -35,6 +36,7 @@ const Topbar: React.FC = () => {
                 alt="Logout"
                 width={20}
                 height={20}
+                style={{ width: "auto", height: "auto" }}
               />
             </Button>
           </SignOutButton>
@@ -49,6 +51,7 @@ const Topbar: React.FC = () => {
                 className="h-8 w-8 rounded-full object-cover"
                 width={32}
                 height={32}
+
               />
             </Link>
           )}

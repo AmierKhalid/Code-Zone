@@ -2,140 +2,29 @@
 
 import { auth, clerkClient } from "@clerk/nextjs/server";
 import { db } from "@/lib/db";
-import {
-  AccountType,
-  ClerkProfile,
-  CurrentUser,
-  CurrentUserResult,
-  SaveUserResult,
-} from "@/app/types";
 
-async function getAuthenticatedUserId(): Promise<string | null> {
-  const { userId } = await auth();
-  return userId ?? null;
-}
+export type SaveUserResult =
+  | { success: true }
+  | { success: false; error: string };
 
-async function fetchClerkUserAndClient(userId: string) {
-  const client = await clerkClient();
-  const clerkUser = await client.users.getUser(userId);
-  return { client, clerkUser };
-}
+export type CurrentUserResult =
+  | { success: true; user: CurrentUser }
+  | { success: false; error: string };
 
-function extractPrimaryEmail(clerkUser: any): string {
-  const primaryEmail = clerkUser.emailAddresses.find(
-    (e: { id: string }) => e.id === clerkUser.primaryEmailAddressId
-  );
-  const email =
-    primaryEmail?.emailAddress ?? clerkUser.emailAddresses[0]?.emailAddress;
-  if (!email) {
-    throw new Error("User has no email");
-  }
-  return email;
-}
-
-function resolveAccountType(clerkUser: any): AccountType {
-  const hasGoogle = clerkUser.externalAccounts?.some(
-    (e: { provider: string }) => e.provider === "oauth_google"
-  );
-  const hasGithub = clerkUser.externalAccounts?.some(
-    (e: { provider: string }) => e.provider === "oauth_github"
-  );
-  if (hasGoogle) return "google";
-  if (hasGithub) return "github";
-  return "standard";
-}
-
-function resolveName(clerkUser: any): string | null {
-  const firstName = clerkUser.firstName ?? "";
-  const lastName = clerkUser.lastName ?? "";
-  const name = [firstName, lastName].filter(Boolean).join(" ");
-  return name || null;
-}
-
-async function ensureUsernameInClerkAndDb(
-  clerkUser: any,
-  email: string,
-  client: Awaited<ReturnType<typeof clerkClient>>
-): Promise<string | null> {
-  let username: string | null = clerkUser.username ?? null;
-
-  if (!username && email) {
-    username = email.split("@")[0].replace(/[^a-zA-Z0-9]/g, "");
-  }
-
-  if (!username) {
-    return null;
-  }
-
-  const existingUserByUsername = await db.user.findUnique({
-    where: { username },
-  });
-
-  if (existingUserByUsername && existingUserByUsername.email !== email) {
-    username = `${username}_${Math.floor(Math.random() * 1000)}`;
-  }
-
-  if (!clerkUser.username) {
-    await client.users.updateUser(clerkUser.id, { username });
-  }
-
-  return username;
-}
-
-async function buildClerkProfile(
-  userId: string
-): Promise<{ profile: ClerkProfile; client: Awaited<ReturnType<typeof clerkClient>> }> {
-  const { client, clerkUser } = await fetchClerkUserAndClient(userId);
-  const email = extractPrimaryEmail(clerkUser);
-  const accountType = resolveAccountType(clerkUser);
-  const name = resolveName(clerkUser);
-  const username = await ensureUsernameInClerkAndDb(clerkUser, email, client);
-
-  const profile: ClerkProfile = {
-    clerkUserId: clerkUser.id,
-    email,
-    name,
-    username,
-    accountType,
-    imageUrl: clerkUser.imageUrl ?? null,
-  };
-
-  return { profile, client };
-}
-
-async function upsertUserInDatabase(profile: ClerkProfile): Promise<void> {
-  const existingUserByEmail = await db.user.findUnique({
-    where: { email: profile.email },
-  });
-
-  if (existingUserByEmail) {
-    await db.user.update({
-      where: { id: existingUserByEmail.id },
-      data: {
-        accountId: profile.clerkUserId,
-        image: existingUserByEmail.image ?? profile.imageUrl,
-        name: existingUserByEmail.name ?? profile.name,
-        username: existingUserByEmail.username ?? profile.username,
-      },
-    });
-    return;
-  }
-
-  await db.user.create({
-    data: {
-      accountId: profile.clerkUserId,
-      accountType: profile.accountType,
-      name: profile.name,
-      username: profile.username,
-      email: profile.email,
-      image: profile.imageUrl,
-    },
-  });
-}
+export type CurrentUser = {
+  id: string;
+  accountId: string;
+  name: string | null;
+  username: string | null;
+  email: string;
+  image: string | null;
+  bio: string | null;
+  accountType: string;
+};
 
 export async function saveUserToDB(): Promise<SaveUserResult> {
   try {
-    const userId = await getAuthenticatedUserId();
+    const { userId } = await auth();
     if (!userId) {
       return { success: false, error: "Unauthorized" };
     }
@@ -147,8 +36,96 @@ export async function saveUserToDB(): Promise<SaveUserResult> {
       return { success: true };
     }
 
-    const { profile } = await buildClerkProfile(userId);
-    await upsertUserInDatabase(profile);
+    const client = await clerkClient();
+    const clerkUser = await client.users.getUser(userId);
+
+    const primaryEmail = clerkUser.emailAddresses.find(
+      (e: { id: string }) => e.id === clerkUser.primaryEmailAddressId,
+    );
+    const email =
+      primaryEmail?.emailAddress ?? clerkUser.emailAddresses[0]?.emailAddress;
+    if (!email) {
+      return { success: false, error: "User has no email" };
+    }
+
+    const hasGoogle = clerkUser.externalAccounts?.some(
+      (e: { provider: string }) => e.provider === "oauth_google",
+    );
+    const hasGithub = clerkUser.externalAccounts?.some(
+      (e: { provider: string }) => e.provider === "oauth_github",
+    );
+    const accountType = hasGoogle
+      ? ("google" as const)
+      : hasGithub
+        ? ("github" as const)
+        : ("standard" as const);
+
+    console.log(
+      `[saveUserToDB] Processing user: ${userId} | ${email} | ${accountType}`,
+    );
+
+    const firstName = clerkUser.firstName ?? "";
+    const lastName = clerkUser.lastName ?? "";
+    const name = [firstName, lastName].filter(Boolean).join(" ") || null;
+    let username = clerkUser.username ?? null;
+
+    // Generate username if missing (common for Google)
+    if (!username && email) {
+      // Sanitize email handle: remove special chars, keep alphanumeric
+      username = email.split("@")[0].replace(/[^a-zA-Z0-9]/g, "");
+    }
+
+    console.log(`[saveUserToDB] Resolved username: ${username}`);
+
+    if (username) {
+      const existingUserByUsername = await db.user.findUnique({
+        where: { username },
+      });
+      if (existingUserByUsername && existingUserByUsername.email !== email) {
+        username = `${username}_${Math.floor(Math.random() * 1000)}`;
+        console.log(`[saveUserToDB] Username conflict resolved: ${username}`);
+      }
+
+      // If Clerk user is missing username, sync it back to Clerk as well
+      if (!clerkUser.username) {
+        await client.users.updateUser(userId, { username });
+        console.log(`[saveUserToDB] Synced username to Clerk: ${username}`);
+      }
+    }
+
+    // Check if user exists by email
+    const existingUserByEmail = await db.user.findUnique({
+      where: { email },
+    });
+
+    if (existingUserByEmail) {
+      console.log(
+        `[saveUserToDB] Updating existing user: ${existingUserByEmail.id}`,
+      );
+      // Update the existing user's accountId to match the new Clerk ID
+      await db.user.update({
+        where: { id: existingUserByEmail.id },
+        data: {
+          accountId: clerkUser.id,
+          image: existingUserByEmail.image ?? clerkUser.imageUrl,
+          name: existingUserByEmail.name ?? name,
+          username: existingUserByEmail.username ?? username,
+        },
+      });
+      return { success: true };
+    }
+
+    console.log(`[saveUserToDB] Creating new user`);
+    await db.user.create({
+      data: {
+        accountId: clerkUser.id,
+        accountType,
+        name,
+        username,
+        email,
+        image: clerkUser.imageUrl ?? null,
+      },
+    });
 
     return { success: true };
   } catch (error) {
@@ -161,7 +138,7 @@ export async function saveUserToDB(): Promise<SaveUserResult> {
 
 export async function getCurrentUser(): Promise<CurrentUserResult> {
   try {
-    const userId = await getAuthenticatedUserId();
+    const { userId } = await auth();
     if (!userId) {
       return { success: false, error: "Unauthorized" };
     }

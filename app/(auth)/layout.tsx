@@ -12,6 +12,7 @@ const Layout = ({ children }: { children: ReactNode }) => {
             width={60}
             height={50}
             className="object-cover"
+
           />
           <h1 className="text-[36px] font-bold">
             Code<span className="text-fuchsia-500">Zone</span>
@@ -27,6 +28,7 @@ const Layout = ({ children }: { children: ReactNode }) => {
         width={800}
         height={800}
         className="hidden xl:block h-screen rounded-l-full w-1/2 object-cover bg-no-repeat"
+
       />
     </main>
   );
