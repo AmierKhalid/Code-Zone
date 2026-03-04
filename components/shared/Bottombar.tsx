@@ -16,15 +16,17 @@ const Bottombar: React.FC = () => {
           <Link
             href={link.route}
             key={link.label}
-            className={`flex-center transition flex-col gap-1 p-2 ${
-              isActive ? "bg-primary-500 rounded-[10px]" : ""
+            className={`flex-center flex-col gap-1 p-2 rounded-lg transition-all duration-200 ease-in-out group ${
+              isActive
+                ? "bg-primary-500 scale-105 shadow-lg"
+                : "hover:bg-dark-3 hover:scale-105"
             }`}
           >
             <img
-              width={16}
-              height={16}
-              className={`group-hover:invert-white ${
-                isActive ? "invert-white" : ""
+              width={24}
+              height={24}
+              className={`transition-colors duration-200 ${
+                isActive ? "invert-white" : "group-hover:invert-white"
               }`}
               src={link.imgURL}
               alt={link.label}
