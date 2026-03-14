@@ -15,6 +15,11 @@ export const sidebarLinks = [
     label: "Let't Hunt",
   },
   {
+    imgURL: "/icons/profile-placeholder.svg",
+    route: "/profile",
+    label: "Profile",
+  },
+  {
     imgURL: "/icons/chat.svg",
     route: "/Message",
     label: "Message",

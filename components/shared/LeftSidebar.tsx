@@ -35,8 +35,8 @@ const LeftSidebar = () => {
         </Link>
 
         <Link
-          href={user ? `/profile/${user.id}` : "#"}
-          className="flex gap-3 items-center"
+          href={user ? `/profile` : "#"}
+          className="flex gap-1 items-center"
         >
           {isLoading ? (
             <div className="flex gap-3 items-center">
@@ -93,12 +93,7 @@ const LeftSidebar = () => {
 
       <SignOutButton signOutOptions={{ redirectUrl: "/sign-in" }}>
         <Button variant="ghost" className="shad-button_ghost w-full">
-          <Image
-            src="/icons/logout.svg"
-            alt="Logout"
-            height={20}
-            width={20}
-          />
+          <Image src="/icons/logout.svg" alt="Logout" height={20} width={20} />
           <p className="small-medium lg:base-medium">Logout</p>
         </Button>
       </SignOutButton>

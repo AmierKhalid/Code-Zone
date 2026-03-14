@@ -1,12 +1,21 @@
-
-
 export type IUser = {
   id: string;
-  name: string;
-  username: string;
+  accountId: string;
+  name: string | null;
+  username: string | null;
   email: string;
-  imageUrl: string;
-  bio: string;
+  image: string | null;
+  bio: string | null;
+  accountType: string;
+  totalPoints: number | null;
+  isVerified: boolean | null;
+};
+
+export type IUpdateProfile = {
+  name?: string;
+  username?: string;
+  bio?: string;
+  image?: string;
 };
 
 export type INewUser = {
@@ -17,14 +26,14 @@ export type INewUser = {
   type: "standard" | "google" | "github";
 };
 
-export type verificationProps={
+export type verificationProps = {
   isOpen: boolean;
   email: string;
   onClose: () => void;
-  onComplete: (code:string) => Promise<void>;
-  onResend?:()=>Promise<void>;
-  resendColldown?:number;
-}
+  onComplete: (code: string) => Promise<void>;
+  onResend?: () => Promise<void>;
+  resendColldown?: number;
+};
 
 // export type IUpdateUser = {
 //   userId: string;
@@ -42,4 +51,3 @@ export type INavLink = {
   route: string;
   label: string;
 };
-
