@@ -2,9 +2,59 @@ import { auth } from "@clerk/nextjs/server";
 import { getCurrentUser } from "@/app/actions/userAction";
 import Image from "next/image";
 import Link from "next/link";
+import ProfileTabs from "@/components/profile/ProfileTabs";
+
+interface Repo {
+  name: string;
+  description: string;
+  tech: string;
+  date?: string;
+}
+
+interface Post {
+  title: string;
+  content: string;
+  date?: string;
+}
+
+const repos: Repo[] = [
+  {
+    name: "Code-Zone",
+    description: "Developer platform for sharing coding projects",
+    tech: "Next.js • Prisma • PostgreSQL",
+    date: "2026-03-10",
+  },
+  {
+    name: "AI Chat App",
+    description: "AI chat interface with OpenAI API",
+    tech: "React • Node • OpenAI",
+    date: "2026-03-05",
+  },
+];
+
+const posts: Post[] = [
+  {
+    title: "How to build a Next.js app",
+    content: "Guide for building fullstack apps with Next.js",
+    date: "2026-03-12",
+  },
+  {
+    title: "Prisma tips",
+    content: "Useful tips for Prisma ORM",
+    date: "2026-03-01",
+  },
+];
 
 export default async function ProfilePage() {
   const { userId } = await auth();
+
+  if (!userId) {
+    return (
+      <div className="flex items-center justify-center min-h-screen text-white">
+        Not authenticated
+      </div>
+    );
+  }
 
   const currentUserResult = await getCurrentUser();
 
@@ -19,19 +69,20 @@ export default async function ProfilePage() {
   const user = currentUserResult.user;
 
   return (
-    <div className="min-h-screen bg-black text-white">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-10">
+    <div className="min-h-screen bg-black text-white flex justify-center">
+      <div className="w-full max-w-7xl px-4 sm:px-6 lg:px-8 py-10">
 
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-10">
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-10 items-start">
 
-          {/* LEFT PROFILE */}
-          <aside className="lg:col-span-1 flex flex-col items-center lg:items-start text-center lg:text-left">
+          <aside className="lg:col-span-1 flex flex-col items-center lg:items-center text-center">
 
             <Image
               src={user.image || "/icons/profile-placeholder.svg"}
               width={140}
               height={140}
               alt="profile"
+              priority
+              sizes="140px"
               className="rounded-full border-2 border-purple-500"
             />
 
@@ -45,11 +96,11 @@ export default async function ProfilePage() {
               {user.bio || "Developer 🚀"}
             </p>
 
-            {/* Stats */}
-            <div className="flex gap-6 mt-4 text-sm text-gray-400">
+            <div className="flex gap-6 mt-4 text-sm text-gray-400 justify-center">
               <span>
                 <b className="text-white">120</b> Followers
               </span>
+
               <span>
                 <b className="text-white">80</b> Following
               </span>
@@ -61,88 +112,19 @@ export default async function ProfilePage() {
             >
               Edit Profile
             </Link>
+
           </aside>
 
-          {/* RIGHT CONTENT */}
-          <main className="lg:col-span-3">
+          <main className="lg:col-span-3 w-full flex justify-center">
 
-            {/* Tabs */}
-            <div className="flex gap-6 overflow-x-auto border-b border-gray-800 pb-3 text-sm scrollbar-hide">
-
-              <button className="text-purple-400 border-b-2 border-purple-500 pb-2 whitespace-nowrap">
-                Overview
-              </button>
-
-              <button className="text-gray-400 hover:text-white whitespace-nowrap">
-                Repositories
-              </button>
-
-              <button className="text-gray-400 hover:text-white whitespace-nowrap">
-                Projects
-              </button>
-
-            </div>
-
-            {/* Stats Cards */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6 mt-8">
-
-              <div className="bg-[#0f0f13] p-5 rounded-xl border border-[#1c1c24]">
-                <p className="text-gray-400 text-sm">Repositories</p>
-                <h2 className="text-2xl font-bold mt-1">12</h2>
-              </div>
-
-              <div className="bg-[#0f0f13] p-5 rounded-xl border border-[#1c1c24]">
-                <p className="text-gray-400 text-sm">Projects</p>
-                <h2 className="text-2xl font-bold mt-1">5</h2>
-              </div>
-
-              <div className="bg-[#0f0f13] p-5 rounded-xl border border-[#1c1c24]">
-                <p className="text-gray-400 text-sm">Stars</p>
-                <h2 className="text-2xl font-bold mt-1">34</h2>
-              </div>
-
-            </div>
-
-            {/* Repositories */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-10">
-
-              <div className="bg-[#0f0f13] p-5 rounded-xl border border-[#1c1c24] hover:border-purple-500 transition">
-
-                <h3 className="font-semibold text-lg">
-                  Code-Zone
-                </h3>
-
-                <p className="text-gray-400 text-sm mt-2">
-                  Developer platform for sharing coding projects
-                </p>
-
-                <div className="mt-3 text-xs text-purple-400">
-                  Next.js • Prisma • PostgreSQL
-                </div>
-
-              </div>
-
-              <div className="bg-[#0f0f13] p-5 rounded-xl border border-[#1c1c24] hover:border-purple-500 transition">
-
-                <h3 className="font-semibold text-lg">
-                  AI Chat App
-                </h3>
-
-                <p className="text-gray-400 text-sm mt-2">
-                  AI chat interface with OpenAI API
-                </p>
-
-                <div className="mt-3 text-xs text-purple-400">
-                  React • Node • OpenAI
-                </div>
-
-              </div>
-
+            <div className="w-full max-w-4xl">
+              <ProfileTabs posts={posts} repos={repos} />
             </div>
 
           </main>
 
         </div>
+
       </div>
     </div>
   );

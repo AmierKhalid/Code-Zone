@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 import { updateProfile } from "@/app/actions/profileAction";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { Button } from "@/components/ui/button";
@@ -13,6 +14,8 @@ import Loader from "@/components/shared/Loader";
 export default function EditProfile() {
   const { user, isLoading: userLoading } = useCurrentUser();
   const router = useRouter();
+
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [formData, setFormData] = useState({
     name: user?.name ?? "",
@@ -27,6 +30,19 @@ export default function EditProfile() {
     return <Loader />;
   }
 
+  const handleImageChange = (file: File) => {
+    const reader = new FileReader();
+
+    reader.onloadend = () => {
+      setFormData({
+        ...formData,
+        image: reader.result as string,
+      });
+    };
+
+    reader.readAsDataURL(file);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
@@ -35,7 +51,7 @@ export default function EditProfile() {
 
     if (result.success) {
       toast.success("Profile updated!");
-      router.push(`/profile/${user.id}`);
+      router.push(`/profile`);
     } else {
       toast.error(result.error);
     }
@@ -45,45 +61,60 @@ export default function EditProfile() {
 
   return (
     <div className="min-h-screen bg-black text-white">
-
-      <div className="max-w-6xl mx-auto px-6 py-10 grid grid-cols-4 gap-10">
-
+      <div className="max-w-6xl mx-auto px-6 py-10 grid grid-cols-1 md:grid-cols-4 gap-10">
         {/* LEFT PROFILE PREVIEW */}
-        <div className="col-span-1">
+        <div className="flex flex-col items-center md:items-start">
+          <div
+            className="relative group cursor-pointer"
+            onClick={() => fileInputRef.current?.click()}
+          >
+            <Image
+              src={formData.image || "/avatar.png"}
+              alt={formData.name || "User avatar"}
+              width={128}
+              height={128}
+              className="w-32 h-32 rounded-full border-2 border-purple-500 object-cover"
+            />
 
-          <img
-            src={formData.image || "/avatar.png"}
-            className="w-32 h-32 rounded-full border-2 border-purple-500"
+            {/* Hover overlay */}
+            <div className="absolute inset-0 rounded-full bg-black/60 opacity-0 group-hover:opacity-100 flex items-center justify-center text-sm transition">
+              Change
+            </div>
+          </div>
+
+          {/* Hidden file input */}
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            title="Upload profile image"
+            onChange={(e) => {
+              if (e.target.files?.[0]) {
+                handleImageChange(e.target.files[0]);
+              }
+            }}
           />
 
           <h1 className="text-xl font-bold mt-4">
             {formData.name || "Your Name"}
           </h1>
 
-          <p className="text-purple-400">
-            @{formData.username || "username"}
-          </p>
+          <p className="text-purple-400">@{formData.username || "username"}</p>
 
-          <p className="text-gray-400 mt-3">
+          <p className="text-gray-400 mt-3 text-center md:text-left">
             {formData.bio || "Developer 🚀"}
           </p>
-
         </div>
 
-
         {/* RIGHT FORM */}
-        <div className="col-span-3">
-
-          <h1 className="text-2xl font-bold mb-6">
-            Edit Profile
-          </h1>
+        <div className="md:col-span-3">
+          <h1 className="text-2xl font-bold mb-6">Edit Profile</h1>
 
           <form onSubmit={handleSubmit} className="space-y-6">
-
             <div>
-              <label className="block text-sm mb-2 text-gray-400">
-                Name
-              </label>
+              <label className="block text-sm mb-2 text-gray-400">Name</label>
+
               <Input
                 value={formData.name}
                 onChange={(e) =>
@@ -97,6 +128,7 @@ export default function EditProfile() {
               <label className="block text-sm mb-2 text-gray-400">
                 Username
               </label>
+
               <Input
                 value={formData.username}
                 onChange={(e) =>
@@ -107,9 +139,8 @@ export default function EditProfile() {
             </div>
 
             <div>
-              <label className="block text-sm mb-2 text-gray-400">
-                Bio
-              </label>
+              <label className="block text-sm mb-2 text-gray-400">Bio</label>
+
               <Textarea
                 rows={4}
                 value={formData.bio}
@@ -124,6 +155,7 @@ export default function EditProfile() {
               <label className="block text-sm mb-2 text-gray-400">
                 Avatar URL
               </label>
+
               <Input
                 value={formData.image}
                 onChange={(e) =>
@@ -140,13 +172,9 @@ export default function EditProfile() {
             >
               {isSubmitting ? <Loader /> : "Update Profile"}
             </Button>
-
           </form>
-
         </div>
-
       </div>
-
     </div>
   );
 }

@@ -1,5 +1,10 @@
 export const sidebarLinks = [
   {
+    imgURL: "/icons/profile-placeholder.svg",
+    route: "/profile",
+    label: "Profile",
+  },
+  {
     imgURL: "/icons/home.svg",
     route: "/",
     label: "Home",
@@ -15,11 +20,6 @@ export const sidebarLinks = [
     label: "Let't Hunt",
   },
   {
-    imgURL: "/icons/profile-placeholder.svg",
-    route: "/profile",
-    label: "Profile",
-  },
-  {
     imgURL: "/icons/chat.svg",
     route: "/Message",
     label: "Message",
@@ -29,6 +29,7 @@ export const sidebarLinks = [
     route: "/CreatePost",
     label: "Create Post",
   },
+  
 ];
 
 export const bottombarLinks = [
