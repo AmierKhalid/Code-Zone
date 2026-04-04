@@ -1,0 +1,7 @@
+{
+  "WillLuke.nextjs.hasPrompted": true,
+  "prisma.pinToPrisma6": false,
+  "search.exclude": {
+    "**/bower_components": false
+  }
+}
