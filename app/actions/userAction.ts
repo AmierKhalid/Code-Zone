@@ -2,179 +2,251 @@
 
 import { auth, clerkClient } from "@clerk/nextjs/server";
 import { db } from "@/lib/db";
+import { revalidatePath } from "next/cache";
 
-export type SaveUserResult =
-  | { success: true }
-  | { success: false; error: string };
-
+// --- 1. التعريفات (Types) ---
 export type CurrentUserResult =
-  | { success: true; user: CurrentUser }
+  | { success: true; user: any }
   | { success: false; error: string };
 
-export type CurrentUser = {
-  id: string;
-  accountId: string;
-  name: string | null;
-  username: string | null;
-  email: string;
-  image: string | null;
-  bio: string | null;
-  accountType: string;
-};
-
-export async function saveUserToDB(): Promise<SaveUserResult> {
+// --- 2. حفظ المستخدم عند التسجيل (النسخة المحسنة والمحمية) ---
+export async function saveUserToDB() {
   try {
+    // 1. جلب الـ ID من Clerk
     const { userId } = await auth();
     if (!userId) {
-      return { success: false, error: "Unauthorized" };
+      console.warn("No userId found in auth()");
+      return null;
     }
 
-    const existingUser = await db.user.findUnique({
-      where: { accountId: userId },
-    });
-    if (existingUser) {
-      return { success: true };
-    }
-
+    // 2. جلب بيانات المستخدم من Clerk Client
     const client = await clerkClient();
     const clerkUser = await client.users.getUser(userId);
 
-    const primaryEmail = clerkUser.emailAddresses.find(
-      (e: { id: string }) => e.id === clerkUser.primaryEmailAddressId,
-    );
-    const email =
-      primaryEmail?.emailAddress ?? clerkUser.emailAddresses[0]?.emailAddress;
+    // 3. التأكد من وجود الإيميل (حقل إجباري في السكيما)
+    const email = clerkUser.emailAddresses?.[0]?.emailAddress;
     if (!email) {
-      return { success: false, error: "User has no email" };
+      console.error("Critical: User has no email in Clerk");
+      return null;
     }
 
-    const hasGoogle = clerkUser.externalAccounts?.some(
-      (e: { provider: string }) => e.provider === "oauth_google",
-    );
-    const hasGithub = clerkUser.externalAccounts?.some(
-      (e: { provider: string }) => e.provider === "oauth_github",
-    );
-    const accountType = hasGoogle
-      ? ("google" as const)
-      : hasGithub
-        ? ("github" as const)
-        : ("standard" as const);
+    // 4. تجهيز البيانات الأساسية
+    const name = `${clerkUser.firstName || ""} ${clerkUser.lastName || ""}`.trim() || "User";
+    const image = clerkUser.imageUrl || "";
 
-    console.log(
-      `[saveUserToDB] Processing user: ${userId} | ${email} | ${accountType}`,
-    );
+    // 5. التعامل مع الـ Username (عشان الـ Unique constraint)
+    const fallbackUsername = `${email.split("@")[0]}${Math.floor(1000 + Math.random() * 9000)}`;
+    const finalUsername = clerkUser.username || fallbackUsername;
 
-    const firstName = clerkUser.firstName ?? "";
-    const lastName = clerkUser.lastName ?? "";
-    const name = [firstName, lastName].filter(Boolean).join(" ") || null;
-    let username = clerkUser.username ?? null;
-
-    // Generate username if missing (common for Google)
-    if (!username && email) {
-      // Sanitize email handle: remove special chars, keep alphanumeric
-      username = email.split("@")[0].replace(/[^a-zA-Z0-9]/g, "");
-    }
-
-    console.log(`[saveUserToDB] Resolved username: ${username}`);
-
-    if (username) {
-      const existingUserByUsername = await db.user.findUnique({
-        where: { username },
-      });
-      if (existingUserByUsername && existingUserByUsername.email !== email) {
-        username = `${username}_${Math.floor(Math.random() * 1000)}`;
-        console.log(`[saveUserToDB] Username conflict resolved: ${username}`);
-      }
-
-      // If Clerk user is missing username, sync it back to Clerk as well
-      if (!clerkUser.username) {
-        await client.users.updateUser(userId, { username });
-        console.log(`[saveUserToDB] Synced username to Clerk: ${username}`);
-      }
-    }
-
-    // Check if user exists by email
-    const existingUserByEmail = await db.user.findUnique({
-      where: { email },
-    });
-
-    if (existingUserByEmail) {
-      console.log(
-        `[saveUserToDB] Updating existing user: ${existingUserByEmail.id}`,
-      );
-      // Update the existing user's accountId to match the new Clerk ID
-      await db.user.update({
-        where: { id: existingUserByEmail.id },
-        data: {
-          accountId: clerkUser.id,
-          image: existingUserByEmail.image ?? clerkUser.imageUrl,
-          name: existingUserByEmail.name ?? name,
-          username: existingUserByEmail.username ?? username,
-        },
-      });
-      return { success: true };
-    }
-
-    console.log(`[saveUserToDB] Creating new user`);
-    await db.user.create({
-      data: {
-        accountId: clerkUser.id,
-        accountType,
+    // 6. عملية الـ Upsert (تحديث لو موجود / إنشاء لو جديد)
+    return await db.user.upsert({
+      where: { 
+        accountId: userId 
+      },
+      update: { 
+        name, 
+        image,
+        email: email, 
+      },
+      create: {
+        accountId: userId,
         name,
-        username,
-        email,
-        image: clerkUser.imageUrl ?? null,
+        username: finalUsername,
+        email: email,
+        image,
+        accountType: "standard",
+        totalPoints: 0,
+        isVerified: false,
       },
     });
-
-    return { success: true };
-  } catch (error) {
-    console.error("Error in saveUserToDB:", error);
-    const message =
-      error instanceof Error ? error.message : "Failed to save user";
-    return { success: false, error: message };
+  } catch (error: any) {
+    console.error("❌ Prisma Upsert Error Detail:", error);
+    return null;
   }
 }
 
+// --- 3. جلب المستخدم الحالي ---
 export async function getCurrentUser(): Promise<CurrentUserResult> {
   try {
     const { userId } = await auth();
-    if (!userId) {
-      return { success: false, error: "Unauthorized" };
-    }
+    if (!userId) return { success: false, error: "Unauthorized" };
 
-    let user = await db.user.findUnique({
+    const user = await db.user.findUnique({
       where: { accountId: userId },
     });
 
-    if (!user) {
-      const saved = await saveUserToDB();
-      if (saved.success) {
-        user = await db.user.findUnique({
-          where: { accountId: userId },
-        });
-      }
-      if (!user) {
-        return { success: false, error: "User not found" };
-      }
+    if (!user) return { success: false, error: "User not found" };
+
+    return { success: true, user };
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
+}
+
+// --- 4. جلب بيانات البروفايل (مع حالة الفولو) ---
+export async function getProfileData(targetUserId: string) {
+  try {
+    const { userId: clerkId } = await auth();
+    
+    let currentDbUser = null;
+    if (clerkId) {
+      currentDbUser = await db.user.findUnique({
+        where: { accountId: clerkId }
+      });
     }
 
-    return {
-      success: true,
-      user: {
-        id: user.id,
-        accountId: user.accountId,
-        name: user.name,
-        username: user.username,
-        email: user.email,
-        image: user.image,
-        bio: user.bio,
-        accountType: user.accountType,
+    const userProfile = await db.user.findUnique({
+      where: { id: targetUserId },
+      include: {
+        _count: {
+          select: { followers: true, following: true, posts: true },
+        },
+        followers: {
+          where: { followerId: currentDbUser?.id || "" },
+        },
       },
+    });
+
+    if (!userProfile) return null;
+
+    return {
+      ...userProfile,
+      followersCount: userProfile._count.followers,
+      followingCount: userProfile._count.following,
+      postsCount: userProfile._count.posts,
+      isFollowing: userProfile.followers.length > 0,
     };
   } catch (error) {
-    const message =
-      error instanceof Error ? error.message : "Failed to get user";
-    return { success: false, error: message };
+    console.error("Error in getProfileData:", error);
+    return null;
+  }
+}
+
+// --- 5. نظام المتابعة (Toggle Follow) ---
+export async function toggleFollow(targetUserId: string) {
+  try {
+    const { userId: clerkId } = await auth();
+    if (!clerkId) return { success: false, error: "Unauthorized" };
+
+    const currentUser = await db.user.findUnique({
+      where: { accountId: clerkId },
+    });
+
+    if (!currentUser) return { success: false, error: "User not found" };
+    if (currentUser.id === targetUserId) return { success: false, error: "Cannot follow yourself" };
+
+    const existingFollow = await db.follow.findUnique({
+      where: {
+        followerId_followingId: {
+          followerId: currentUser.id,
+          followingId: targetUserId,
+        },
+      },
+    });
+
+    if (existingFollow) {
+      await db.follow.delete({
+        where: {
+          followerId_followingId: {
+            followerId: currentUser.id,
+            followingId: targetUserId,
+          },
+        },
+      });
+    } else {
+      await db.follow.create({
+        data: {
+          followerId: currentUser.id,
+          followingId: targetUserId,
+        },
+      });
+    }
+
+    revalidatePath(`/profile/${targetUserId}`);
+    revalidatePath(`/profile/${currentUser.id}`);
+    
+    return { success: true };
+  } catch (error) {
+    console.error("Error in toggleFollow Action:", error);
+    return { success: false };
+  }
+}
+
+// --- 6. جلب قوائم المتابعين والمتابعين ---
+export async function getFollowersList(targetUserId: string) {
+  try {
+    const followers = await db.follow.findMany({
+      where: { followingId: targetUserId },
+      include: { 
+        follower: {
+          select: { id: true, name: true, username: true, image: true }
+        } 
+      },
+    });
+    return followers.map(f => f.follower);
+  } catch (error) {
+    console.error("Error fetching followers list:", error);
+    return [];
+  }
+}
+
+export async function getFollowingList(targetUserId: string) {
+  try {
+    const following = await db.follow.findMany({
+      where: { followerId: targetUserId },
+      include: { 
+        following: {
+          select: { id: true, name: true, username: true, image: true }
+        } 
+      },
+    });
+    return following.map(f => f.following);
+  } catch (error) {
+    console.error("Error fetching following list:", error);
+    return [];
+  }
+}
+
+// --- 7. البحث عن المستخدمين ---
+export async function searchUsers(query: string) {
+  try {
+    if (!query || query.trim() === "") return [];
+    
+    return await db.user.findMany({
+      where: {
+        OR: [
+          { name: { contains: query, mode: 'insensitive' } },
+          { username: { contains: query, mode: 'insensitive' } },
+        ],
+      },
+      select: {
+        id: true,
+        name: true,
+        username: true,
+        image: true,
+      },
+      take: 10,
+    });
+  } catch (error) {
+    console.error("Error in searchUsers:", error);
+    return [];
+  }
+}
+
+
+export async function getPostLikers(postId: string) {
+  try {
+    const likes = await db.like.findMany({
+      where: { postId: postId },
+      include: {
+        user: true, // تأكدي إن دي موجودة عشان يسحب (الاسم، الصورة، اليوزرنيم)
+      },
+    });
+
+    // اتأكدي إننا بنرجع مصفوفة فيها بيانات اليوزر
+    return likes.map((l) => l.user);
+  } catch (error) {
+    console.error(error);
+    return [];
   }
 }
