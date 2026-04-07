@@ -3,7 +3,6 @@
 import { useEffect, useRef, useState } from "react";
 import { MailIcon } from "lucide-react";
 import { OTPInput, type SlotProps } from "input-otp";
-import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,

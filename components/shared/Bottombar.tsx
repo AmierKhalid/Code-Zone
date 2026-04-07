@@ -19,14 +19,14 @@ const Bottombar: React.FC = () => {
             className={`flex-center flex-col gap-1 p-2 rounded-lg transition-all duration-200 ease-in-out group ${
               isActive
                 ? "bg-primary-500 scale-105 shadow-lg"
-                : "hover:bg-dark-3 hover:scale-105"
+                : ""
             }`}
           >
             <img
               width={24}
               height={24}
               className={`transition-colors duration-200 ${
-                isActive ? "invert-white" : "group-hover:invert-white"
+                isActive ? "invert-white" : ""
               }`}
               src={link.imgURL}
               alt={link.label}

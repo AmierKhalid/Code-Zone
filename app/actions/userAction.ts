@@ -2,25 +2,7 @@
 
 import { auth, clerkClient } from "@clerk/nextjs/server";
 import { db } from "@/lib/db";
-
-export type SaveUserResult =
-  | { success: true }
-  | { success: false; error: string };
-
-export type CurrentUserResult =
-  | { success: true; user: CurrentUser }
-  | { success: false; error: string };
-
-export type CurrentUser = {
-  id: string;
-  accountId: string;
-  name: string | null;
-  username: string | null;
-  email: string;
-  image: string | null;
-  bio: string | null;
-  accountType: string;
-};
+import { SaveUserResult, CurrentUserResult } from "../types";
 
 export async function saveUserToDB(): Promise<SaveUserResult> {
   try {

@@ -2,14 +2,14 @@
 
 import { AuthenticateWithRedirectCallback, useAuth } from "@clerk/nextjs";
 import Loader from "@/components/shared/Loader";
-import { useEffect, useState } from "react";
+import { useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { saveUserToDB } from "@/app/actions/userAction";
 
 export default function SSOCallbackPage() {
   const router = useRouter();
   const { isLoaded, userId } = useAuth();
-  const [saving, setSaving] = useState(false);
+  const savingRef = useRef(false);
 
   // when the page mounts and the user is authenticated we try to persist the
   // profile in our own database. `getCurrentUser` (used elsewhere) already
@@ -18,8 +18,8 @@ export default function SSOCallbackPage() {
   // saving we let Clerk continue its normal redirect behaviour by not
   // interfering with `AuthenticateWithRedirectCallback`.
   useEffect(() => {
-    if (!isLoaded || !userId || saving) return;
-    setSaving(true);
+    if (!isLoaded || !userId || savingRef.current) return;
+    savingRef.current = true;
     saveUserToDB()
       .catch((err) => {
         console.error("Failed to save OAuth user to DB:", err);
@@ -28,7 +28,7 @@ export default function SSOCallbackPage() {
         // even if saving fails we still allow the user to continue
         router.replace("/");
       });
-  }, [isLoaded, userId, saving, router]);
+  }, [isLoaded, userId, router]);
 
   return (
     <div className="flex-center min-h-screen w-full flex flex-col items-center justify-center gap-4">

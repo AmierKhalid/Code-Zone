@@ -25,6 +25,17 @@ import Loader from "@/components/shared/Loader";
 import VerificationDialog from "@/components/shared/VerificationDialog";
 import { saveUserToDB } from "@/app/actions/userAction";
 
+type ClerkErrorLike = {
+  errors?: { longMessage?: string; message?: string }[];
+  message?: string;
+};
+
+function getClerkLongMessage(err: unknown): string | null {
+  if (!err || typeof err !== "object") return null;
+  const e = err as ClerkErrorLike;
+  return e.errors?.[0]?.longMessage || e.errors?.[0]?.message || e.message || null;
+}
+
 export default function SignUpPage() {
   const router = useRouter();
   const { isLoaded, signUp, setActive } = useSignUp();
@@ -62,9 +73,8 @@ export default function SignUpPage() {
       setPendingEmail(values.email);
       setIsVerificationOpen(true);
       toast.success("Verification code sent to your email");
-    } catch (err: any) {
-      const clerkError = err?.errors?.[0];
-      const longMessage = (clerkError?.longMessage as string | undefined) ?? "";
+    } catch (err: unknown) {
+      const longMessage = getClerkLongMessage(err) ?? "";
 
       // Prefer Clerk's detailed message and also surface it next to the most
       // relevant field so the user knows exactly what to fix.
@@ -148,11 +158,11 @@ export default function SignUpPage() {
           error: `${providerName} sign-up failed`,
         },
       );
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(`${providerName} OAuth sign-up error:`, err);
       toast.error(
         `${providerName} sign-up failed: ${
-          err.errors?.[0]?.longMessage || err.message || "Unknown error"
+          getClerkLongMessage(err) || "Unknown error"
         }`,
       );
       setIsOAuthLoading(false);

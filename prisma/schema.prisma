@@ -86,7 +86,8 @@ model Post {
   id            String   @id @default(cuid())
   authorId      String
   caption       String?
-  content       String? // long text, body, or markdown
+  location      String?
+  tags          String[]
   mediaUrl      String? // single media url; change to a separate model if you need many
   likesCount    Int      @default(0)
   commentsCount Int      @default(0)

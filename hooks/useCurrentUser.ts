@@ -2,9 +2,10 @@
 
 import { useEffect, useState } from "react";
 import { getCurrentUser } from "@/app/actions/userAction";
+import type { CurrentUser } from "@/app/types";
 
 export function useCurrentUser() {
-  const [user, setUser] = useState<any | null>(null);
+  const [user, setUser] = useState<CurrentUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 

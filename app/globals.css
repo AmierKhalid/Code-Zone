@@ -17,6 +17,14 @@
 }
 
 @layer utilities {
+  /* Hide scrollbars but keep functionality */
+  .hide-scrollbar {
+    -ms-overflow-style: none; /* Internet Explorer 10+ */
+    scrollbar-width: none; /* Firefox */
+  }
+  .hide-scrollbar::-webkit-scrollbar {
+    display: none; /* Safari and Chrome */
+  }
   /* TYPOGRAPHY */
   .h1-bold {
     @apply text-[36px] font-bold leading-[140%] tracking-tighter;
@@ -111,7 +119,7 @@
   }
 
   .common-container {
-    @apply flex flex-col flex-1 items-center gap-10 overflow-scroll py-10 px-5 md:px-8 lg:p-14 custom-scrollbar;
+    @apply flex flex-col flex-1 items-center gap-10 py-10 px-5 md:px-8 lg:p-14 hide-scrollbar;
   }
 
   /* All Users */
@@ -125,7 +133,7 @@
 
   /* Explore */
   .explore-container {
-    @apply flex flex-col flex-1 items-center overflow-scroll py-10 px-5 md:p-14 custom-scrollbar;
+    @apply flex flex-col flex-1 items-center py-10 px-5 md:p-14 hide-scrollbar;
   }
 
   .explore-inner_container {
@@ -266,7 +274,7 @@
   /* Left sidebar */
   .leftsidebar {
     /* Make left sidebar same width as leaderboard for symmetric spacing */
-    @apply hidden md:flex px-6 py-10 flex-col justify-between w-72 bg-dark-2;
+    @apply hidden md:flex px-6 py-10 flex-col justify-between w-72 bg-dark-2 fixed left-0 top-0 h-screen overflow-y-auto hide-scrollbar;
   }
 
   .leftsidebar-link {

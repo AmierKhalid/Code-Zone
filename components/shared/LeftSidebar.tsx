@@ -3,20 +3,33 @@
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
-import { SignOutButton } from "@clerk/nextjs";
+import { SignOutButton, useUser } from "@clerk/nextjs";
 import { Button } from "../ui/button";
 import { sidebarLinks } from "../../constants/index";
 import { INavLink } from "@/app/types";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
-import Loader from "@/components/shared/Loader";
 
 const LeftSidebar = () => {
   const pathname = usePathname();
   const { user, isLoading } = useCurrentUser();
 
-  const displayName = user?.name ?? user?.username ?? "User";
-  const displayUsername = user?.username ? `@${user.username}` : "";
-  const imageUrl = user?.image ?? "/icons/profile-placeholder.svg";
+  const { user: clerkUser, isLoaded: isClerkLoaded } = useUser();
+
+  const displayName =
+    user?.name ??
+    user?.username ??
+    (isClerkLoaded ? clerkUser?.fullName ?? clerkUser?.username : null) ??
+    "User";
+  const displayUsername =
+    user?.username
+      ? `@${user.username}`
+      : isClerkLoaded && clerkUser?.username
+        ? `@${clerkUser.username}`
+        : "";
+  const imageUrl =
+    user?.image ??
+    (isClerkLoaded ? clerkUser?.imageUrl : null) ??
+    "/icons/profile-placeholder.svg";
 
   return (
     <nav className="leftsidebar">
@@ -24,10 +37,12 @@ const LeftSidebar = () => {
         <Link href="/" className="flex gap-3 items-center">
           <Image
             className="w-12 h-12"
-            src="images/logo.svg"
+            src="/images/logo.svg"
             alt="Code-Zone Logo"
             height={36}
             width={170}
+          
+            
           />
           <h1 className="text-[25px] te font-bold whitespace-nowrap text-center">
             Code-<span className="text-fuchsia-500">Zone</span>
@@ -54,6 +69,7 @@ const LeftSidebar = () => {
                 className="h-14 w-14 rounded-full object-cover"
                 height={56}
                 width={56}
+                style={{ width: "auto", height: "auto" }}
               />
               <div className="flex flex-col">
                 <p className="body-bold">{displayName}</p>
@@ -93,12 +109,7 @@ const LeftSidebar = () => {
 
       <SignOutButton signOutOptions={{ redirectUrl: "/sign-in" }}>
         <Button variant="ghost" className="shad-button_ghost w-full">
-          <Image
-            src="/icons/logout.svg"
-            alt="Logout"
-            height={20}
-            width={20}
-          />
+          <Image src="/icons/logout.svg" alt="Logout" height={20} width={20} />
           <p className="small-medium lg:base-medium">Logout</p>
         </Button>
       </SignOutButton>

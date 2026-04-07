@@ -25,6 +25,21 @@ import Loader from "@/components/shared/Loader";
 import VerificationDialog from "@/components/shared/VerificationDialog";
 import { saveUserToDB } from "@/app/actions/userAction";
 
+type ClerkErrorLike = {
+  errors?: { longMessage?: string; message?: string }[];
+  message?: string;
+};
+
+function getClerkLongMessage(err: unknown): string | null {
+  if (!err || typeof err !== "object") return null;
+  const e = err as ClerkErrorLike;
+  return e.errors?.[0]?.longMessage || e.errors?.[0]?.message || e.message || null;
+}
+
+type EmailVerificationCapableSignIn = {
+  prepareEmailAddressVerification: (params: { strategy: "email_code" }) => Promise<unknown>;
+};
+
 export default function SignInPage() {
   const router = useRouter();
   const { isLoaded, signIn, setActive } = useSignIn();
@@ -70,7 +85,9 @@ export default function SignInPage() {
       // activated. we treat this like second‑factor but reuse the same dialog.
       // Clerk types omit "needs_email_verification" but the API can return it at runtime
       if ((signInAttempt.status as string) === "needs_email_verification") {
-        await (signIn as any).prepareEmailAddressVerification({
+        const signInWithEmailVerification =
+          signIn as unknown as EmailVerificationCapableSignIn;
+        await signInWithEmailVerification.prepareEmailAddressVerification({
           strategy: "email_code",
         });
         setPendingEmail(values.email);
@@ -97,13 +114,9 @@ export default function SignInPage() {
       } else {
         toast.error("Sign-in could not be completed. Please try again.");
       }
-    } catch (err: any) {
-      const clerkError = err?.errors?.[0];
-      const longMessage = (clerkError?.longMessage as string | undefined) ?? "";
-
-      // Prefer Clerk's detailed error message (e.g. password / email issues)
+    } catch (err: unknown) {
       const message =
-        longMessage ||
+        getClerkLongMessage(err) ||
         (err instanceof Error ? err.message : "Invalid email or password");
       toast.error(message);
     } finally {
@@ -157,7 +170,9 @@ export default function SignInPage() {
 
   async function handleResendVerification() {
     if (!signIn) return;
-    await (signIn as any).prepareEmailAddressVerification({
+    const signInWithEmailVerification =
+      signIn as unknown as EmailVerificationCapableSignIn;
+    await signInWithEmailVerification.prepareEmailAddressVerification({
       strategy: "email_code",
     });
   }
@@ -185,13 +200,11 @@ export default function SignInPage() {
       // note: after a successful redirect the app will unload, so we don't need
       // additional success handling here. isOAuthLoading will be reset if the
       // user returns due to error.
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("OAuth sign-in error:", err);
-      // toast.promise already displayed an error message, but we ensure the detailed
-      // message is there as well.
       toast.error(
         `${providerName} sign-in failed: ${
-          err.errors?.[0]?.longMessage || err.message || "Unknown error"
+          getClerkLongMessage(err) || "Unknown error"
         }`
       );
       setIsOAuthLoading(false);

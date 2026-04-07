@@ -19,10 +19,12 @@ export default async function RootLayout({
   await saveUserToDB();
 
   return (
-    <main className="w-full md:flex md:justify-center md:gap-12">
+    <main className="w-full md:flex">
       <Topbar />
       <LeftSidebar />
-      <section className="flex flex-1 h-full">{children}</section>
+      <section className="flex flex-1 h-full min-h-screen overflow-y-auto hide-scrollbar md:ml-72">
+        {children}
+      </section>
       <Bottombar />
     </main>
   );

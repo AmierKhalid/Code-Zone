@@ -2,14 +2,23 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { SignOutButton } from "@clerk/nextjs";
+import { SignOutButton, useUser } from "@clerk/nextjs";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { Button } from "../ui/button";
 
 const Topbar: React.FC = () => {
   const { user, isLoading } = useCurrentUser();
-  const displayName = user?.name ?? user?.username ?? "User";
-  const imageUrl = user?.image ?? "/icons/profile-placeholder.svg";
+  const { user: clerkUser, isLoaded: isClerkLoaded } = useUser();
+
+  const displayName =
+    user?.name ??
+    user?.username ??
+    (isClerkLoaded ? clerkUser?.fullName ?? clerkUser?.username : null) ??
+    "User";
+  const imageUrl =
+    user?.image ??
+    (isClerkLoaded ? clerkUser?.imageUrl : null) ??
+    "/icons/profile-placeholder.svg";
 
   return (
     <section className="topbar">
@@ -21,6 +30,7 @@ const Topbar: React.FC = () => {
             className="w-12 h-12"
             width={130}
             height={36}
+
 
           />
           <h1 className="text-[25px] font-bold whitespace-nowrap text-center">
@@ -36,7 +46,7 @@ const Topbar: React.FC = () => {
                 alt="Logout"
                 width={20}
                 height={20}
-                style={{ width: "auto", height: "auto" }}
+                
               />
             </Button>
           </SignOutButton>
