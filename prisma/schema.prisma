@@ -86,7 +86,10 @@ model Post {
   id            String   @id @default(cuid())
   authorId      String
   caption       String?
+<<<<<<< HEAD
   location      String?
+=======
+>>>>>>> e0b033a93542e0958ab6cb08ea8adeda53c50fb8
   tags          String[]
   mediaUrl      String? // single media url; change to a separate model if you need many
   likesCount    Int      @default(0)
