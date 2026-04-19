@@ -9,7 +9,6 @@ generator client {
   output   = "../lib/generated/prisma"
 }
 
-
 datasource db {
   provider = "postgresql"
 }
@@ -42,12 +41,31 @@ enum difficulties {
 enum tilteType {
   master_of_Code @map("master of code")
   the_debuger    @map("the debuger")
+  legend         @map("legend")
+  grandmaster    @map("grandmaster")
+  master         @map("master")
+  expert         @map("expert")
+  journeyman     @map("journeyman")
+  apprentice     @map("apprentice")
+  novice         @map("novice")
 }
 
 enum accountType {
   standard
   google
   github
+}
+
+enum NotificationType {
+  FOLLOW
+  LIKE
+  COMMENT
+}
+
+enum MessageAttachmentKind {
+  image
+  video
+  file
 }
 
 //!!this is just initial scheme so use (db push) not migrate 
@@ -66,16 +84,22 @@ model User {
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
 
-  posts     Post[]    @relation("UserPosts")
-  comments  Comment[] @relation("UserComments")
-  likes     Like[]    @relation("UserLikes")
-  saves     Save[]    @relation("UserSaves")
-  followers Follow[]  @relation("FollowingTo")
-  following Follow[]  @relation("FollowingFrom")
+  posts                 Post[]         @relation("UserPosts")
+  comments              Comment[]      @relation("UserComments")
+  likes                 Like[]         @relation("UserLikes")
+  saves                 Save[]         @relation("UserSaves")
+  postShares            PostShare[]    @relation("UserPostShares")
+  followers             Follow[]       @relation("FollowingTo")
+  following             Follow[]       @relation("FollowingFrom")
+  receivedNotifications Notification[] @relation("NotificationRecipient")
+  sentNotifications     Notification[] @relation("NotificationActor")
 
   // error/solution contributions 
   errors    ErrorReport[] @relation("UserErrors")
   solutions Solution[]    @relation("UserSolutions")
+
+  conversationParticipants ConversationParticipant[] @relation("ConversationParticipants")
+  sentMessages             Message[]                 @relation("SentMessages")
 
   @@index([email])
   @@index([username])
@@ -86,35 +110,55 @@ model Post {
   id            String   @id @default(cuid())
   authorId      String
   caption       String?
-<<<<<<< HEAD
   location      String?
-=======
->>>>>>> e0b033a93542e0958ab6cb08ea8adeda53c50fb8
   tags          String[]
   mediaUrl      String? // single media url; change to a separate model if you need many
   likesCount    Int      @default(0)
   commentsCount Int      @default(0)
+  sharesCount   Int      @default(0)
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
-  author   User      @relation("UserPosts", fields: [authorId], references: [id])
-  comments Comment[] @relation("PostComments")
-  likes    Like[]    @relation("PostLikes")
-  saves    Save[]    @relation("PostSaves")
+  author        User           @relation("UserPosts", fields: [authorId], references: [id])
+  comments      Comment[]      @relation("PostComments")
+  likes         Like[]         @relation("PostLikes")
+  saves         Save[]         @relation("PostSaves")
+  postShares    PostShare[]    @relation("PostShares")
+  notifications Notification[] @relation("PostNotifications")
+}
+
+model PostShare {
+  id        String   @id @default(cuid())
+  userId    String
+  postId    String
+  createdAt DateTime @default(now())
+
+  user User @relation("UserPostShares", fields: [userId], references: [id], onDelete: Cascade)
+  post Post @relation("PostShares", fields: [postId], references: [id], onDelete: Cascade)
+
+  @@index([postId])
+  @@index([userId])
 }
 
 model Comment {
-  id       String @id @default(cuid())
+  id       String  @id @default(cuid())
   postId   String
   authorId String
+  parentId String?
 
-  content    String
-  likesCount Int      @default(0)
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  content          String
+  mentionedUserIds String[] @default([])
+  likesCount       Int      @default(0)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
 
-  post   Post @relation("PostComments", fields: [postId], references: [id])
-  author User @relation("UserComments", fields: [authorId], references: [id])
+  post    Post     @relation("PostComments", fields: [postId], references: [id], onDelete: Cascade)
+  author  User     @relation("UserComments", fields: [authorId], references: [id], onDelete: Cascade)
+  parent  Comment? @relation("CommentThread", fields: [parentId], references: [id], onDelete: Cascade)
+  replies Comment[] @relation("CommentThread")
+
+  @@index([postId, createdAt])
+  @@index([parentId])
 }
 
 model Like {
@@ -156,6 +200,81 @@ model Follow {
   @@unique([followerId, followingId])
   @@index([followerId])
   @@index([followingId])
+}
+
+model Conversation {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  participants ConversationParticipant[]
+  messages     Message[]
+
+  @@index([updatedAt])
+}
+
+model ConversationParticipant {
+  conversationId String
+  userId         String
+  joinedAt       DateTime @default(now())
+
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  user         User          @relation("ConversationParticipants", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([conversationId, userId])
+  @@index([userId])
+}
+
+model Message {
+  id             String   @id @default(cuid())
+  conversationId String
+  senderId       String
+  content        String
+  /** Optional fenced-style code; shown in a dedicated block with `snippetLang` */
+  snippetCode    String?
+  snippetLang    String?
+  createdAt      DateTime @default(now())
+
+  conversation Conversation         @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  sender       User                  @relation("SentMessages", fields: [senderId], references: [id], onDelete: Cascade)
+  attachments  MessageAttachment[]
+
+  @@index([conversationId, createdAt])
+  @@index([senderId])
+}
+
+model MessageAttachment {
+  id        String                 @id @default(cuid())
+  messageId String
+  kind      MessageAttachmentKind
+  url       String
+  fileName  String?
+  mimeType  String?
+  byteSize  Int?
+
+  message Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
+  @@index([messageId])
+}
+
+model Notification {
+  id          String           @id @default(cuid())
+  recipientId String
+  actorId     String
+  postId      String?
+  type        NotificationType
+  isRead      Boolean          @default(false)
+  createdAt   DateTime         @default(now())
+
+  recipient User  @relation("NotificationRecipient", fields: [recipientId], references: [id], onDelete: Cascade)
+  actor     User  @relation("NotificationActor", fields: [actorId], references: [id], onDelete: Cascade)
+  post      Post? @relation("PostNotifications", fields: [postId], references: [id], onDelete: Cascade)
+
+  @@unique([recipientId, actorId, postId, type])
+  @@index([recipientId, createdAt])
+  @@index([recipientId, isRead])
+  @@index([actorId])
+  @@index([postId])
 }
 
 model ErrorReport {

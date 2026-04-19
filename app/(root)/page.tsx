@@ -6,17 +6,32 @@ import { getHomePostsForFeed } from "@/lib/homeFeed";
 import PostCard from "@/components/shared/PostCard";
 import FeedRefresher from "@/components/shared/FeedRefresher";
 import Loader from "@/components/shared/Loader";
+import Leaderboard from "@/components/shared/Leaderboard";
+
 import { Button } from "@/components/ui/button";
 import type { Post } from "@/app/types/index";
 
 export default function Home() {
   return (
-    <div className="flex flex-1">
+    <div className="flex min-h-0 flex-1">
       <FeedRefresher />
-      <div className="home-container">
-        <Suspense fallback={<Loader />}>
-          <HomeFeed />
-        </Suspense>
+      <div className="flex min-h-0 flex-1">
+        <div className="home-container flex-1">
+          <Suspense fallback={<Loader />}>
+            <HomeFeed />
+          </Suspense>
+        </div>
+        <aside className="leaderboard-wrapper hidden lg:block">
+          <Suspense
+            fallback={
+              <div className="leaderboard-container flex-center min-h-[240px]">
+                <Loader />
+              </div>
+            }
+          >
+            <Leaderboard />
+          </Suspense>
+        </aside>
       </div>
     </div>
   );
@@ -28,12 +43,19 @@ async function HomeFeed() {
 
   const { userId } = await auth();
 
-  const currentUser = userId
-    ? await db.user.findUnique({
+  let currentUser = null;
+  
+  if (userId) {
+    try {
+      currentUser = await db.user.findUnique({
         where: { accountId: userId },
         select: { id: true },
-      })
-    : null;
+      });
+    } catch (error) {
+      console.error("Error fetching current user:", error);
+      loadError = true;
+    }
+  }
 
   try {
     const rawPosts = await getHomePostsForFeed();

@@ -13,14 +13,12 @@ const PostCard = ({ post, currentUserId }: PostCardProps) => {
   if (!post.author) return null;
 
   const likedByMe = Boolean(
-    currentUserId &&
-      post.likes?.some((l) => l.userId === currentUserId),
+    currentUserId && post.likes?.some((l) => l.userId === currentUserId),
   );
   const savedByMe = Boolean(
-    currentUserId &&
-      post.saves?.some((s) => s.userId === currentUserId),
+    currentUserId && post.saves?.some((s) => s.userId === currentUserId),
   );
-  const postStatsKey = `${post.id}:${post.likesCount}:${likedByMe ? 1 : 0}:${savedByMe ? 1 : 0}`;
+  const postStatsKey = `${post.id}:${post.likesCount}:${post.sharesCount ?? 0}:${likedByMe ? 1 : 0}:${savedByMe ? 1 : 0}`;
 
   return (
     <div className="post-card">
@@ -84,11 +82,7 @@ const PostCard = ({ post, currentUserId }: PostCardProps) => {
         )}
       </Link>
 
-      <PostStats
-        key={postStatsKey}
-        post={post}
-        currentUserId={currentUserId}
-      />
+      <PostStats key={postStatsKey} post={post} currentUserId={currentUserId} />
     </div>
   );
 };

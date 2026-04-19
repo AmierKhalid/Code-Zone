@@ -1,8 +1,10 @@
 import Link from "next/link";
-import { Button } from "@/components/ui/button";
 import type { ProfileUser } from "@/lib/profileData";
 import ProfileBackButton from "./ProfileBackButton";
 import ProfileTabs from "./ProfileTabs";
+import FollowToggleButton from "./FollowToggleButton";
+import ShareLinkButton from "./ShareLinkButton";
+
 
 type StatBlockProps = {
   value: string | number;
@@ -22,12 +24,14 @@ type ProfileHeaderProps = {
   profile: ProfileUser;
   profileId: string;
   currentUserId: string | null;
+  initialIsFollowing: boolean;
 };
 
 export default function ProfileHeader({
   profile,
   profileId,
   currentUserId,
+  initialIsFollowing,
 }: ProfileHeaderProps) {
   const isOwnProfile = currentUserId === profileId;
   const imageSrc = profile.image || "/icons/profile-placeholder.svg";
@@ -61,13 +65,20 @@ export default function ProfileHeader({
             </div>
 
             {profile.bio && (
-              <p className="small-medium md:base-medium text-center xl:text-left mt-7 max-w-screen-sm text-light-2">
+              <p className="small-medium md:base-medium mt-7 w-full max-w-3xl text-center text-light-2 xl:text-left">
                 {profile.bio}
               </p>
             )}
           </div>
 
-          <div className="flex justify-center gap-4">
+          <div className="flex flex-wrap justify-center gap-3 md:gap-4">
+            <ShareLinkButton
+              path={`/profile/${profileId}`}
+              shareTitle={`${profile.name ?? profile.username ?? "Profile"} (@${profile.username ?? "user"})`}
+              shareText="View this profile on Code Zone"
+              withLabel
+              className="h-12 border border-dark-4 bg-dark-4 px-5 hover:bg-dark-3"
+            />
             {isOwnProfile && (
               <Link
                 href={`/update-profile/${profileId}`}
@@ -78,15 +89,25 @@ export default function ProfileHeader({
               </Link>
             )}
             {!isOwnProfile && (
-              <Button type="button" className="shad-button_primary px-8">
-                Follow
-              </Button>
+              <>
+                <Link
+                  href={`/Message?with=${profileId}`}
+                  className="h-12 flex-center gap-2 rounded-lg border border-dark-4 bg-dark-4 px-5 small-medium text-light-1 transition hover:bg-dark-3"
+                >
+                  <img src="/icons/chat.svg" alt="" width={20} height={20} />
+                  Message
+                </Link>
+                <FollowToggleButton
+                  targetUserId={profileId}
+                  initialIsFollowing={initialIsFollowing}
+                />
+              </>
             )}
           </div>
         </div>
       </div>
 
-      {isOwnProfile && <ProfileTabs profileId={profileId} />}
+
     </>
   );
 }

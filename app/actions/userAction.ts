@@ -1,8 +1,20 @@
 "use server";
 
 import { auth, clerkClient } from "@clerk/nextjs/server";
+import { revalidateTag } from "next/cache";
 import { db } from "@/lib/db";
 import { SaveUserResult, CurrentUserResult } from "../types";
+import { HOME_FEED_CACHE_TAG } from "@/lib/homeFeed";
+import { NotificationType } from "@/lib/generated/prisma/client";
+
+function isPrismaUniqueViolation(err: unknown): boolean {
+  return (
+    typeof err === "object" &&
+    err !== null &&
+    "code" in err &&
+    (err as { code: unknown }).code === "P2002"
+  );
+}
 
 export async function saveUserToDB(): Promise<SaveUserResult> {
   try {
@@ -98,16 +110,26 @@ export async function saveUserToDB(): Promise<SaveUserResult> {
     }
 
     console.log(`[saveUserToDB] Creating new user`);
-    await db.user.create({
-      data: {
-        accountId: clerkUser.id,
-        accountType,
-        name,
-        username,
-        email,
-        image: clerkUser.imageUrl ?? null,
-      },
-    });
+    try {
+      await db.user.create({
+        data: {
+          accountId: clerkUser.id,
+          accountType,
+          name,
+          username,
+          email,
+          image: clerkUser.imageUrl ?? null,
+        },
+      });
+    } catch (err: unknown) {
+      if (isPrismaUniqueViolation(err)) {
+        const row = await db.user.findUnique({
+          where: { accountId: clerkUser.id },
+        });
+        if (row) return { success: true };
+      }
+      throw err;
+    }
 
     return { success: true };
   } catch (error) {
@@ -158,5 +180,112 @@ export async function getCurrentUser(): Promise<CurrentUserResult> {
     const message =
       error instanceof Error ? error.message : "Failed to get user";
     return { success: false, error: message };
+  }
+}
+
+export async function getFollowState(targetUserId: string) {
+  try {
+    const { userId } = await auth();
+    if (!userId) return { success: false as const, error: "Unauthorized" };
+
+    const me = await db.user.findUnique({
+      where: { accountId: userId },
+      select: { id: true },
+    });
+    if (!me) return { success: false as const, error: "User not found" };
+
+    if (me.id === targetUserId) {
+      return { success: true as const, isFollowing: false };
+    }
+
+    const existing = await db.follow.findUnique({
+      where: {
+        followerId_followingId: {
+          followerId: me.id,
+          followingId: targetUserId,
+        },
+      },
+      select: { id: true },
+    });
+
+    return { success: true as const, isFollowing: Boolean(existing) };
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : "Failed to load follow state";
+    return { success: false as const, error: message };
+  }
+}
+
+export async function toggleFollowUser(targetUserId: string) {
+  try {
+    const { userId } = await auth();
+    if (!userId) return { success: false as const, error: "Unauthorized" };
+
+    const me = await db.user.findUnique({
+      where: { accountId: userId },
+      select: { id: true },
+    });
+    if (!me) return { success: false as const, error: "User not found" };
+    if (me.id === targetUserId) {
+      return { success: false as const, error: "Cannot follow yourself" };
+    }
+
+    const result = await db.$transaction(async (tx) => {
+      const existing = await tx.follow.findUnique({
+        where: {
+          followerId_followingId: {
+            followerId: me.id,
+            followingId: targetUserId,
+          },
+        },
+      });
+
+      if (existing) {
+        await tx.follow.delete({ where: { id: existing.id } });
+        return { isFollowing: false as const };
+      }
+
+      await tx.follow.create({
+        data: {
+          followerId: me.id,
+          followingId: targetUserId,
+        },
+      });
+      const existingFollowNotification = await tx.notification.findFirst({
+        where: {
+          recipientId: targetUserId,
+          actorId: me.id,
+          type: NotificationType.FOLLOW,
+          postId: null,
+        },
+        select: { id: true },
+      });
+      if (existingFollowNotification) {
+        await tx.notification.update({
+          where: { id: existingFollowNotification.id },
+          data: {
+            isRead: false,
+            createdAt: new Date(),
+          },
+        });
+      } else {
+        await tx.notification.create({
+          data: {
+            recipientId: targetUserId,
+            actorId: me.id,
+            postId: null,
+            type: NotificationType.FOLLOW,
+          },
+        });
+      }
+      return { isFollowing: true as const };
+    });
+
+    revalidateTag(HOME_FEED_CACHE_TAG, "max");
+    return { success: true as const, isFollowing: result.isFollowing };
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : "Failed to update follow";
+    return { success: false as const, error: message };
   }
 }

@@ -46,6 +46,7 @@ export type Post = {
   mediaUrl: string | null;
   likesCount: number;
   commentsCount: number;
+  sharesCount: number;
   createdAt: Date;
   updatedAt: Date;
   author: {

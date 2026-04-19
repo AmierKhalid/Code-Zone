@@ -46,6 +46,7 @@ function mapToPost(
     mediaUrl: string | null;
     likesCount: number;
     commentsCount: number;
+    sharesCount: number;
     createdAt: Date;
     updatedAt: Date;
     author: Post["author"];

@@ -38,7 +38,7 @@ export default function GridPostList({
         const savedByMe = Boolean(
           user?.id && post.saves?.some((s) => s.userId === user.id),
         );
-        const postStatsKey = `${post.id}:${post.likesCount}:${likedByMe ? 1 : 0}:${savedByMe ? 1 : 0}`;
+        const postStatsKey = `${post.id}:${post.likesCount}:${post.sharesCount ?? 0}:${likedByMe ? 1 : 0}:${savedByMe ? 1 : 0}`;
 
         return (
           <li key={post.id} className="relative min-w-80 h-80">
@@ -54,9 +54,7 @@ export default function GridPostList({
               {showUser && post.author && (
                 <div className="flex items-center justify-start gap-2 flex-1 min-w-0">
                   <img
-                    src={
-                      post.author.image || "/icons/profile-placeholder.svg"
-                    }
+                    src={post.author.image || "/icons/profile-placeholder.svg"}
                     alt="creator"
                     className="w-8 h-8 rounded-full shrink-0 object-cover"
                   />

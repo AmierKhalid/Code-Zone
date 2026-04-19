@@ -11,3 +11,7 @@ export function maskEmail(email: string): string {
   if (local.length <= 2) return `${local[0]}***@${domain}`;
   return `${local.slice(0, 3)}*******${local.slice(-2)}@${domain}`;
 }
+
+export function getProfileImageUrl(user: { imageUrl?: string | null }): string {
+  return user.imageUrl || "/icons/profile-placeholder.svg";
+}
