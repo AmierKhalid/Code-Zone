@@ -4,6 +4,7 @@ import "./globals.css";
 import { ReactNode } from "react";
 import { ClerkProvider } from "@clerk/nextjs";
 import { Toaster } from "@/components/ui/sonner";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -26,6 +27,7 @@ const RootLayout = ({ children }: { children: ReactNode }) => {
         >
           <main className="flex min-h-0 flex-1 flex-col">{children}</main>
           <Toaster richColors position="top-center" />
+          <SpeedInsights />
         </body>
       </html>
     </ClerkProvider>
