@@ -152,9 +152,9 @@ model Comment {
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 
-  post    Post     @relation("PostComments", fields: [postId], references: [id], onDelete: Cascade)
-  author  User     @relation("UserComments", fields: [authorId], references: [id], onDelete: Cascade)
-  parent  Comment? @relation("CommentThread", fields: [parentId], references: [id], onDelete: Cascade)
+  post    Post      @relation("PostComments", fields: [postId], references: [id], onDelete: Cascade)
+  author  User      @relation("UserComments", fields: [authorId], references: [id], onDelete: Cascade)
+  parent  Comment?  @relation("CommentThread", fields: [parentId], references: [id], onDelete: Cascade)
   replies Comment[] @relation("CommentThread")
 
   @@index([postId, createdAt])
@@ -219,7 +219,7 @@ model ConversationParticipant {
   joinedAt       DateTime @default(now())
 
   conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
-  user         User          @relation("ConversationParticipants", fields: [userId], references: [id], onDelete: Cascade)
+  user         User         @relation("ConversationParticipants", fields: [userId], references: [id], onDelete: Cascade)
 
   @@id([conversationId, userId])
   @@index([userId])
@@ -230,13 +230,15 @@ model Message {
   conversationId String
   senderId       String
   content        String
-  /** Optional fenced-style code; shown in a dedicated block with `snippetLang` */
+  /**
+   * Optional fenced-style code; shown in a dedicated block with `snippetLang`
+   */
   snippetCode    String?
   snippetLang    String?
   createdAt      DateTime @default(now())
 
-  conversation Conversation         @relation(fields: [conversationId], references: [id], onDelete: Cascade)
-  sender       User                  @relation("SentMessages", fields: [senderId], references: [id], onDelete: Cascade)
+  conversation Conversation        @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  sender       User                @relation("SentMessages", fields: [senderId], references: [id], onDelete: Cascade)
   attachments  MessageAttachment[]
 
   @@index([conversationId, createdAt])
@@ -244,7 +246,7 @@ model Message {
 }
 
 model MessageAttachment {
-  id        String                 @id @default(cuid())
+  id        String                @id @default(cuid())
   messageId String
   kind      MessageAttachmentKind
   url       String

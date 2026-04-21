@@ -4,7 +4,7 @@ import "./globals.css";
 import { ReactNode } from "react";
 import { ClerkProvider } from "@clerk/nextjs";
 import { Toaster } from "@/components/ui/sonner";
-
+import { Analytics } from "@vercel/analytics/next"
 const inter = Inter({
   subsets: ["latin"],
   weight: ["400", "500", "600", "700", "800"],
@@ -19,13 +19,15 @@ export const metadata: Metadata = {
 
 const RootLayout = ({ children }: { children: ReactNode }) => {
   return (
+    
     <ClerkProvider>
+      <Analytics/>
       <html lang="en">
         <body
           className={`${inter.variable} font-inter antialiased flex min-h-dvh flex-col`}
         >
           <main className="flex min-h-0 flex-1 flex-col">{children}</main>
-          <Toaster richColors position="top-center" />
+          <Toaster richColors position="bottom-right" />
         </body>
       </html>
     </ClerkProvider>
