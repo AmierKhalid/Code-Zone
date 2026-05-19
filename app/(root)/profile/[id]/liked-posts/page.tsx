@@ -10,7 +10,14 @@ export default async function ProfileLikedPostsPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const { userId } = await auth();
+
+  // Parallelize auth + data fetch
+  const [{ userId }, posts] = await Promise.all([
+    auth(),
+    getLikedPostsForUser(id),
+  ]);
+
+  // Resolve DB user id from clerk id (cheap SELECT)
   const me = userId
     ? await db.user.findUnique({
         where: { accountId: userId },
@@ -18,11 +25,8 @@ export default async function ProfileLikedPostsPage({
       })
     : null;
 
-  if (me?.id !== id) {
-    redirect(`/profile/${id}`);
-  }
-
-  const posts = await getLikedPostsForUser(id);
+  // Only the owner can view their liked posts
+  if (me?.id !== id) redirect(`/profile/${id}`);
 
   return (
     <div className="mt-6 w-full">

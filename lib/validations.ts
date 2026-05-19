@@ -1,5 +1,9 @@
 import { z } from "zod";
-import { CHAT_MAX_ATTACHMENTS, CHAT_MAX_FILE_BYTES } from "@/lib/chatAttachments";
+import {
+  CHAT_MAX_ATTACHMENTS,
+  CHAT_MAX_FILE_BYTES,
+} from "@/lib/chatAttachments";
+import { Categories, difficulties } from "@/lib/enums";
 
 export const SignupValidation = z.object({
   name: z
@@ -77,10 +81,36 @@ export const PostValidation = z.object({
   file: z.custom<File[]>(),
   location: z
     .string()
-    .min(1, { message: "This field is required" })
-    .max(1000, { message: "Location must be less than 1000 characters" }),
+    .max(1000, { message: "Location must be less than 1000 characters" })
+    .optional()
+    .or(z.literal("")),
   tags: z
     .string()
-    .min(1, { message: "Tags are required" })
-    .max(500, { message: "Tags must be less than 500 characters" }),
+    .max(500, { message: "Tags must be less than 500 characters" })
+    .optional()
+    .or(z.literal("")),
+});
+
+export const ErrorValidation = z.object({
+  title: z
+    .string()
+    .min(1, { message: "Title is required" })
+    .max(200, { message: "Title too long (max 200 characters)" }),
+  description: z
+    .string()
+    .max(2000, { message: "Description too long (max 2000 characters)" })
+    .optional(),
+  code: z
+    .string()
+    .max(10000, { message: "Code snippet too long (max 10,000 characters)" })
+    .optional(),
+  category: z.nativeEnum(Categories).optional(),
+  difficulty: z.nativeEnum(difficulties).optional(),
+});
+
+export const SolutionValidation = z.object({
+  content: z
+    .string()
+    .min(10, { message: "Solution must be at least 10 characters" })
+    .max(5000, { message: "Solution too long (max 5000 characters)" }),
 });

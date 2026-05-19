@@ -1,5 +1,8 @@
+import { unstable_cache } from "next/cache";
 import { db } from "@/lib/db";
 import type { tilteType } from "@/lib/generated/prisma/client";
+
+export const LEADERBOARD_CACHE_TAG = "leaderboard";
 
 export type LeaderboardUserRow = {
   id: string;
@@ -19,9 +22,7 @@ function titleEnumToLabel(title: tilteType): string {
     .join(" ");
 }
 
-export async function getLeaderboardUsers(
-  limit = 10,
-): Promise<LeaderboardUserRow[]> {
+async function fetchLeaderboard(limit: number): Promise<LeaderboardUserRow[]> {
   const rows = await db.user.findMany({
     orderBy: [
       { totalPoints: { sort: "desc", nulls: "last" } },
@@ -48,4 +49,17 @@ export async function getLeaderboardUsers(
     titleKey: u.title,
     titleLabel: u.title ? titleEnumToLabel(u.title) : null,
   }));
+}
+
+/** Cached leaderboard query — revalidates every 60s or on tag invalidation */
+const getCachedLeaderboard = unstable_cache(
+  (limit: number) => fetchLeaderboard(limit),
+  ["leaderboard-users"],
+  { tags: [LEADERBOARD_CACHE_TAG], revalidate: 60 },
+);
+
+export async function getLeaderboardUsers(
+  limit = 10,
+): Promise<LeaderboardUserRow[]> {
+  return getCachedLeaderboard(limit);
 }

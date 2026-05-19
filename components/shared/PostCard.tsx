@@ -1,6 +1,8 @@
 "use client";
 
+import { memo } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import type { Post } from "@/app/types/index";
 import PostStats from "./PostStats";
 
@@ -9,7 +11,7 @@ type PostCardProps = {
   currentUserId?: string;
 };
 
-const PostCard = ({ post, currentUserId }: PostCardProps) => {
+const PostCard = memo(function PostCard({ post, currentUserId }: PostCardProps) {
   if (!post.author) return null;
 
   const likedByMe = Boolean(
@@ -25,10 +27,12 @@ const PostCard = ({ post, currentUserId }: PostCardProps) => {
       <div className="flex-between">
         <div className="flex items-center gap-3">
           <Link href={`/profile/${post.author.id}`}>
-            <img
+            <Image
               src={post.author.image || "/icons/profile-placeholder.svg"}
-              alt="creator"
-              className="w-12 lg:h-12 rounded-full"
+              alt={post.author.name || "creator"}
+              className="w-12 h-12 rounded-full object-cover"
+              width={48}
+              height={48}
             />
           </Link>
 
@@ -56,7 +60,7 @@ const PostCard = ({ post, currentUserId }: PostCardProps) => {
           href={`/update-post/${post.id}`}
           className={currentUserId !== post.author.id ? "hidden" : ""}
         >
-          <img src="/icons/edit.svg" alt="edit" width={20} height={20} />
+          <Image src="/icons/edit.svg" alt="edit" width={20} height={20} />
         </Link>
       </div>
 
@@ -78,13 +82,21 @@ const PostCard = ({ post, currentUserId }: PostCardProps) => {
         </div>
 
         {post.mediaUrl && (
-          <img src={post.mediaUrl} alt="post media" className="post-card_img" />
+          <Image
+            src={post.mediaUrl}
+            alt="post media"
+            className="post-card_img"
+            width={600}
+            height={450}
+            sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 600px"
+            loading="lazy"
+          />
         )}
       </Link>
 
       <PostStats key={postStatsKey} post={post} currentUserId={currentUserId} />
     </div>
   );
-};
+});
 
 export default PostCard;

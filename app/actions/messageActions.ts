@@ -51,6 +51,7 @@ export type MessageDTO = {
   content: string;
   snippetCode: string | null;
   snippetLang: string | null;
+  isRead: boolean;
   createdAt: string;
   senderId: string;
   attachments: MessageAttachmentDTO[];
@@ -87,6 +88,18 @@ export async function fetchMessagesForConversation(
     },
   });
 
+  // Mark all unread messages sent by the other user as read
+  await db.message.updateMany({
+    where: {
+      conversationId,
+      senderId: { not: me },
+      isRead: false,
+    },
+    data: {
+      isRead: true,
+    },
+  });
+
   return {
     success: true,
     messages: messages.map((m) => ({
@@ -94,6 +107,7 @@ export async function fetchMessagesForConversation(
       content: m.content,
       snippetCode: m.snippetCode,
       snippetLang: m.snippetLang,
+      isRead: m.isRead,
       createdAt: m.createdAt.toISOString(),
       senderId: m.senderId,
       sender: m.sender,
@@ -261,4 +275,20 @@ export async function getOrCreateConversationWith(otherUserId: string): Promise<
 
   revalidatePath("/Message");
   return { success: true, conversationId: conv.id };
+}
+
+import { getConversationListForUser, type ConversationListItemDTO } from "@/lib/messageData";
+
+export async function fetchConversationListAction(): Promise<
+  | { success: true; conversations: ConversationListItemDTO[] }
+  | { success: false; error: string }
+> {
+  const me = await getDbUserId();
+  if (!me) return { success: false, error: "Unauthorized" };
+  try {
+    const conversations = await getConversationListForUser(me);
+    return { success: true, conversations };
+  } catch (error) {
+    return { success: false, error: "Failed to load conversations" };
+  }
 }

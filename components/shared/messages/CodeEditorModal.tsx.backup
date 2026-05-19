@@ -1,0 +1,228 @@
+"use client";
+
+import { useState } from "react";
+import {
+  X,
+  Save,
+  Download,
+  Upload,
+  Play,
+  Brain,
+  Zap,
+  Users,
+  Maximize2,
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { toast } from "sonner";
+import AdvancedCodeEditor from "./AdvancedCodeEditor";
+import { CHAT_SNIPPET_LANGUAGES } from "@/lib/chatSnippetLanguages";
+
+interface CodeEditorModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  initialCode?: string;
+  language?: string;
+  onSave?: (code: string) => void;
+}
+
+export default function CodeEditorModal({
+  isOpen,
+  onClose,
+  initialCode = "",
+  language = "typescript",
+  onSave,
+}: CodeEditorModalProps) {
+  const [code, setCode] = useState(initialCode);
+  const [selectedLanguage, setSelectedLanguage] = useState(language);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+
+  const handleSave = () => {
+    onSave?.(code);
+    toast.success("Code saved to message");
+  };
+
+  const handleExport = () => {
+    const blob = new Blob([code], { type: "text/plain" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `code.${language}`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast.success("Code exported");
+  };
+
+  const handleImport = () => {
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = ".js,.ts,.jsx,.tsx,.py,.java,.cpp,.c";
+    input.onchange = (e) => {
+      const file = (e.target as HTMLInputElement).files?.[0];
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          setCode(e.target?.result as string);
+          toast.success("Code imported");
+        };
+        reader.readAsText(file);
+      }
+    };
+    input.click();
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <div
+      className={`fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 ${isFullscreen ? "bg-black/90" : ""}`}
+    >
+      <div
+        className={`flex flex-col ${isFullscreen ? "h-full w-full" : "h-[90vh] w-[95vw] max-w-7xl"} rounded-2xl bg-dark-2 shadow-2xl`}
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between border-b border-dark-4 p-4">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gradient-to-br from-blue-500/20 to-purple-500/20 text-blue-400">
+              <Brain className="h-5 w-5" />
+            </div>
+            <div>
+              <h2 className="text-lg font-semibold text-light-1">
+                Advanced Code Editor
+              </h2>
+              <p className="text-sm text-light-4">
+                AI-powered development environment
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleSave}
+              className="gap-2"
+            >
+              <Save className="h-4 w-4" />
+              Save to Message
+            </Button>
+
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleExport}
+              className="gap-2"
+            >
+              <Download className="h-4 w-4" />
+              Export
+            </Button>
+
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleImport}
+              className="gap-2"
+            >
+              <Upload className="h-4 w-4" />
+              Import
+            </Button>
+
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setIsFullscreen(!isFullscreen)}
+              className="gap-2"
+            >
+              <Maximize2 className="h-4 w-4" />
+              {isFullscreen ? "Exit Fullscreen" : "Fullscreen"}
+            </Button>
+
+            <Button variant="ghost" size="sm" onClick={onClose}>
+              <X className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+
+        {/* Editor */}
+        <div className="flex-1 overflow-hidden">
+          <AdvancedCodeEditor
+            initialCode={code}
+            language={selectedLanguage}
+            onCodeChange={setCode}
+            onExplain={async (code, lang) => {
+              // Open AI chat with code explanation request
+              onClose();
+              // Trigger AI chat with explanation request
+              setTimeout(() => {
+                // This will be handled by the parent component
+                const event = new CustomEvent("openAIChatWithExplanation", {
+                  detail: {
+                    code,
+                    language: selectedLanguage,
+                    request: "explain",
+                  },
+                });
+                window.dispatchEvent(event);
+              }, 100);
+            }}
+            className="h-full"
+          />
+        </div>
+
+        {/* Footer */}
+        <div className="border-t border-dark-4 p-4">
+          <div className="flex items-center gap-4">
+            <span className="text-sm font-medium text-light-2">
+              Advanced Code Editor
+            </span>
+            <div className="flex items-center gap-2">
+              <Select
+                value={selectedLanguage}
+                onValueChange={setSelectedLanguage}
+              >
+                <SelectTrigger className="w-32 h-8 text-xs border border-dark-4 bg-dark-3">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {CHAT_SNIPPET_LANGUAGES.map((lang) => (
+                    <SelectItem key={lang.value} value={lang.value}>
+                      {lang.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <div className="flex items-center gap-2">
+                <div className="h-2 w-2 rounded-full bg-green-500"></div>
+                <span className="text-xs text-light-4">AI Ready</span>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <Button
+                onClick={() => {
+                  setCode("");
+                  toast.success("Editor cleared");
+                }}
+                variant="ghost"
+                size="sm"
+                className="text-xs"
+              >
+                Clear
+              </Button>
+              <Button onClick={handleSave} className="gap-2">
+                <Save className="h-4 w-4" />
+                Save to Message
+              </Button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}

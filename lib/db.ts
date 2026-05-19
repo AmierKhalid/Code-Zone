@@ -9,7 +9,14 @@ function createPrisma() {
     throw new Error("DATABASE_URL is not set");
   }
   const adapter = new PrismaPg({ connectionString });
-  return new PrismaClient({ adapter });
+  return new PrismaClient({
+    adapter,
+    // Reduce Prisma query logging overhead in production
+    log:
+      process.env.NODE_ENV === "production"
+        ? ["error"]
+        : ["query", "error", "warn"],
+  });
 }
 
 type PrismaWithConversation = PrismaClient & {

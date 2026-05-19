@@ -17,7 +17,7 @@ export default async function MessagePage({
 
   const me = await db.user.findUnique({
     where: { accountId: userId },
-    select: { id: true },
+    select: { id: true, name: true, username: true, image: true },
   });
   if (!me) redirect("/sign-in");
 
@@ -33,7 +33,7 @@ export default async function MessagePage({
 
   return (
     <MessagePageShell
-      currentUserId={me.id}
+      currentUser={me}
       initialConversations={initialConversations}
       initialSelectedConversationId={initialSelectedConversationId}
     />

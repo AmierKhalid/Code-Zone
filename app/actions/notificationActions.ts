@@ -2,7 +2,13 @@
 
 import { auth } from "@clerk/nextjs/server";
 import { db } from "@/lib/db";
-import { NotificationType } from "@/lib/generated/prisma/client";
+import {
+  CollabInviteStatus,
+  NotificationType,
+} from "@/lib/generated/prisma/client";
+
+/** Prisma compound-unique typings require `string` for `collabInviteId`; DB column is nullable. */
+const NO_COLLAB_INVITE = null as unknown as string;
 
 type CreateNotificationInput = {
   recipientId: string;
@@ -21,17 +27,20 @@ async function getCurrentDbUserId() {
   return user?.id ?? null;
 }
 
-async function createNotificationInternal(input: CreateNotificationInput) {
+export async function createNotificationInternal(
+  input: CreateNotificationInput,
+) {
   if (input.actorId === input.recipientId) return null;
 
   if (input.postId) {
     return db.notification.upsert({
       where: {
-        recipientId_actorId_postId_type: {
+        recipientId_actorId_postId_type_collabInviteId: {
           recipientId: input.recipientId,
           actorId: input.actorId,
           postId: input.postId,
           type: input.type,
+          collabInviteId: NO_COLLAB_INVITE,
         },
       },
       update: {
@@ -43,6 +52,7 @@ async function createNotificationInternal(input: CreateNotificationInput) {
         actorId: input.actorId,
         postId: input.postId,
         type: input.type,
+        collabInviteId: null,
       },
     });
   }
@@ -53,6 +63,7 @@ async function createNotificationInternal(input: CreateNotificationInput) {
       actorId: input.actorId,
       type: input.type,
       postId: null,
+      collabInviteId: { equals: null },
     },
     select: { id: true },
   });
@@ -69,6 +80,7 @@ async function createNotificationInternal(input: CreateNotificationInput) {
       actorId: input.actorId,
       postId: null,
       type: input.type,
+      collabInviteId: null,
     },
   });
 }
@@ -137,6 +149,13 @@ export async function listMyNotifications(limit = 20) {
             caption: true,
           },
         },
+        collabInvite: {
+          select: {
+            id: true,
+            sessionId: true,
+            status: true,
+          },
+        },
       },
     });
 
@@ -154,7 +173,14 @@ export async function markAllNotificationsRead() {
     if (!dbUserId) return { success: false as const, error: "Unauthorized" };
 
     await db.notification.updateMany({
-      where: { recipientId: dbUserId, isRead: false },
+      where: {
+        recipientId: dbUserId,
+        isRead: false,
+        NOT: {
+          type: NotificationType.COLLAB_INVITE,
+          collabInvite: { is: { status: CollabInviteStatus.PENDING } },
+        },
+      },
       data: { isRead: true },
     });
 
@@ -165,4 +191,3 @@ export async function markAllNotificationsRead() {
     return { success: false as const, error: message };
   }
 }
-

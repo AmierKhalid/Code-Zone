@@ -3,7 +3,14 @@
 import Link from "next/link";
 import Image from "next/image";
 import { createPortal } from "react-dom";
-import { useEffect, useMemo, useRef, useState, useTransition } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useTransition,
+} from "react";
 import { SignOutButton, useUser } from "@clerk/nextjs";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { Button } from "../ui/button";
@@ -13,42 +20,16 @@ import {
   markAllNotificationsRead,
 } from "@/app/actions/notificationActions";
 import { useNotificationPanelPosition } from "@/hooks/useNotificationPanelPosition";
-
-type NotificationItem = {
-  id: string;
-  type: "FOLLOW" | "LIKE" | "COMMENT";
-  createdAt: Date | string;
-  actor: {
-    id: string;
-    name: string | null;
-    username: string | null;
-    image: string | null;
-  };
-  post: {
-    id: string;
-    caption: string | null;
-  } | null;
-  isRead: boolean;
-};
-
-function timeAgo(input: Date | string) {
-  const date = input instanceof Date ? input : new Date(input);
-  const deltaSec = Math.max(1, Math.floor((Date.now() - date.getTime()) / 1000));
-  if (deltaSec < 60) return `${deltaSec}s ago`;
-  const min = Math.floor(deltaSec / 60);
-  if (min < 60) return `${min}m ago`;
-  const hr = Math.floor(min / 60);
-  if (hr < 24) return `${hr}h ago`;
-  const day = Math.floor(hr / 24);
-  return `${day}d ago`;
-}
+import NotificationEntry, {
+  type ListedNotification,
+} from "@/components/shared/NotificationEntry";
 
 const Topbar: React.FC = () => {
   const { user, isLoading } = useCurrentUser();
   const { user: clerkUser, isLoaded: isClerkLoaded } = useUser();
   const [open, setOpen] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
-  const [notifications, setNotifications] = useState<NotificationItem[]>([]);
+  const [notifications, setNotifications] = useState<ListedNotification[]>([]);
   const [isFetching, startTransition] = useTransition();
   const notifRef = useRef<HTMLDivElement>(null);
   const panelPortalRef = useRef<HTMLDivElement>(null);
@@ -79,24 +60,21 @@ const Topbar: React.FC = () => {
     [unreadCount],
   );
 
-  useEffect(() => {
-    let cancelled = false;
-    const load = async () => {
-      const [countRes, listRes] = await Promise.all([
-        getUnreadNotificationCount(),
-        listMyNotifications(12),
-      ]);
-      if (cancelled) return;
-      if (countRes.success) setUnreadCount(countRes.count);
-      if (listRes.success) setNotifications(listRes.notifications as NotificationItem[]);
-    };
-    load();
-    const timer = setInterval(load, 25000);
-    return () => {
-      cancelled = true;
-      clearInterval(timer);
-    };
+  const refreshNotifications = useCallback(async () => {
+    const [countRes, listRes] = await Promise.all([
+      getUnreadNotificationCount(),
+      listMyNotifications(12),
+    ]);
+    if (countRes.success) setUnreadCount(countRes.count);
+    if (listRes.success)
+      setNotifications(listRes.notifications as ListedNotification[]);
   }, []);
+
+  useEffect(() => {
+    void refreshNotifications();
+    const timer = setInterval(() => void refreshNotifications(), 25000);
+    return () => clearInterval(timer);
+  }, [refreshNotifications]);
 
   useEffect(() => {
     const onClickOutside = (e: MouseEvent) => {
@@ -116,19 +94,6 @@ const Topbar: React.FC = () => {
       const res = await markAllNotificationsRead();
       if (res.success) setUnreadCount(0);
     });
-  };
-
-  const getNotificationText = (n: NotificationItem) => {
-    const actorName = n.actor.name ?? n.actor.username ?? "Someone";
-    if (n.type === "FOLLOW") return `${actorName} started following you`;
-    if (n.type === "LIKE") return `${actorName} liked your post`;
-    return `${actorName} commented on your post`;
-  };
-
-  const getNotificationHref = (n: NotificationItem) => {
-    if (n.type === "FOLLOW") return `/profile/${n.actor.id}`;
-    if (n.post?.id) return `/posts/${n.post.id}`;
-    return "/";
   };
 
   return (
@@ -199,30 +164,12 @@ const Topbar: React.FC = () => {
                       </p>
                     ) : (
                       notifications.map((n) => (
-                        <Link
+                        <NotificationEntry
                           key={n.id}
-                          href={getNotificationHref(n)}
-                          className="flex gap-2 items-start px-3 py-2 rounded-lg hover:bg-dark-4"
-                          onClick={() => setOpen(false)}
-                        >
-                          <Image
-                            src={
-                              n.actor.image || "/icons/profile-placeholder.svg"
-                            }
-                            alt={n.actor.name ?? n.actor.username ?? "User"}
-                            width={28}
-                            height={28}
-                            className="rounded-full object-cover"
-                          />
-                          <div className="min-w-0">
-                            <p className="text-light-2 text-sm line-clamp-2">
-                              {getNotificationText(n)}
-                            </p>
-                            <p className="text-light-4 text-xs mt-1">
-                              {timeAgo(n.createdAt)}
-                            </p>
-                          </div>
-                        </Link>
+                          n={n}
+                          onClose={() => setOpen(false)}
+                          onHandled={refreshNotifications}
+                        />
                       ))
                     )}
                   </div>

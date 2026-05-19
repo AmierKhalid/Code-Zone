@@ -257,6 +257,7 @@ export async function toggleFollowUser(targetUserId: string) {
           actorId: me.id,
           type: NotificationType.FOLLOW,
           postId: null,
+          collabInviteId: { equals: null },
         },
         select: { id: true },
       });
@@ -275,6 +276,7 @@ export async function toggleFollowUser(targetUserId: string) {
             actorId: me.id,
             postId: null,
             type: NotificationType.FOLLOW,
+            collabInviteId: null,
           },
         });
       }

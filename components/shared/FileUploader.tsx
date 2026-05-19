@@ -2,6 +2,7 @@
 
 import { useCallback, useState } from "react";
 import { useDropzone, FileWithPath } from "react-dropzone";
+import Image from "next/image";
 import { Button } from "@/components/ui";
 type FileUploaderProps = {
   fieldChange: (FILES: File[]) => void;
@@ -48,8 +49,8 @@ const FileUploader = ({ fieldChange, mediaUrl }: FileUploaderProps) => {
         </>
       ) : (
         <div className="file_uploader-box">
-          <img
-            src="icons/file-upload.svg"
+          <Image
+            src="/icons/file-upload.svg"
             width={96}
             height={77}
             alt="file upload"

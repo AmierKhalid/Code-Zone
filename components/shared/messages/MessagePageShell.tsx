@@ -2,8 +2,9 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import { Bot, Code2, Loader2, Paperclip, Send, X } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   useCallback,
   useEffect,
@@ -17,6 +18,7 @@ import { toast } from "sonner";
 import {
   fetchMessagesForConversation,
   sendMessage,
+  fetchConversationListAction,
   type MessageDTO,
 } from "@/app/actions/messageActions";
 import type { ConversationListItemDTO } from "@/lib/messageData";
@@ -33,20 +35,29 @@ import {
   formatByteSize,
   mimeToAttachmentKind,
   type ChatAttachmentKind,
+  cloudinaryResourceToKind,
 } from "@/lib/chatAttachments";
 import { effectiveMimeForChatFile } from "@/lib/chatUploadMime";
+import { assertChatUploadAllowed } from "@/app/api/upload/chatUploadPolicy";
 import { cn } from "@/lib/utils";
 
+/* ── Lazy-loaded heavy modals (code-split into separate chunks) ── */
+const AIChatModal = dynamic(
+  () => import("@/components/shared/messages/AIChatModal"),
+  { ssr: false },
+);
+const CodeEditorModal = dynamic(
+  () => import("@/components/shared/messages/CodeEditorModal"),
+  { ssr: false },
+);
+
 type Props = {
-  currentUserId: string;
+  currentUser: { id: string; name: string | null; username: string | null; image: string | null };
   initialConversations: ConversationListItemDTO[];
   initialSelectedConversationId: string | null;
 };
 
-function displayName(u: {
-  name: string | null;
-  username: string | null;
-}) {
+function displayName(u: { name: string | null; username: string | null }) {
   return u.name?.trim() || u.username || "User";
 }
 
@@ -62,7 +73,7 @@ type StagedAttachment = {
 };
 
 export default function MessagePageShell({
-  currentUserId,
+  currentUser,
   initialConversations,
   initialSelectedConversationId,
 }: Props) {
@@ -80,9 +91,11 @@ export default function MessagePageShell({
   const [search, setSearch] = useState("");
   const [loadingThread, setLoadingThread] = useState(false);
   const [pending, startTransition] = useTransition();
-  const [stagedAttachments, setStagedAttachments] = useState<StagedAttachment[]>(
-    [],
-  );
+  const [stagedAttachments, setStagedAttachments] = useState<
+    StagedAttachment[]
+  >([]);
+  const [isAIChatOpen, setIsAIChatOpen] = useState(false);
+  const [isCodeEditorOpen, setIsCodeEditorOpen] = useState(false);
   const threadEndRef = useRef<HTMLDivElement>(null);
   const threadBodyRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -115,16 +128,63 @@ export default function MessagePageShell({
   }, [selectedId, loadMessages]);
 
   useEffect(() => {
+    const pollConversations = async () => {
+      const res = await fetchConversationListAction();
+      if (res.success) {
+        setConversations(res.conversations);
+      }
+    };
+    
+    // Poll conversations list every 5 seconds
+    const convInterval = setInterval(pollConversations, 5000);
+    return () => clearInterval(convInterval);
+  }, []);
+
+  useEffect(() => {
     if (!selectedId) return;
     const t = setInterval(() => {
       loadMessages(selectedId);
-    }, 8000);
+    }, 2000);
     return () => clearInterval(t);
   }, [selectedId, loadMessages]);
 
   useEffect(() => {
     threadEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
+
+  const searchParams = useSearchParams();
+  useEffect(() => {
+    if (searchParams.get("collab")) {
+      setIsCodeEditorOpen(true);
+    }
+  }, [searchParams]);
+
+  // Listen for AI chat explanation requests
+  useEffect(() => {
+    const handleAIChatExplanation = (event: CustomEvent) => {
+      const { code, language } = event.detail;
+      // Open AI chat with explanation request
+      setIsAIChatOpen(true);
+
+      // Store the explanation request for the AI chat modal
+      setTimeout(() => {
+        const explanationPrompt = `Please explain this ${language} code:\n\n\`\`\`${language}\n${code}\n\`\`\`\n\nProvide a detailed explanation of what this code does, its key components, and any potential improvements.`;
+        // This will be picked up by the AI chat modal
+        localStorage.setItem("aiChatInitialPrompt", explanationPrompt);
+      }, 200);
+    };
+
+    window.addEventListener(
+      "openAIChatWithExplanation",
+      handleAIChatExplanation as EventListener,
+    );
+    return () => {
+      window.removeEventListener(
+        "openAIChatWithExplanation",
+        handleAIChatExplanation as EventListener,
+      );
+    };
+  }, []);
 
   const selected = useMemo(
     () => conversations.find((c) => c.id === selectedId) ?? null,
@@ -149,31 +209,38 @@ export default function MessagePageShell({
 
   const handleQueueAndUploadFiles = useCallback(async (files: File[]) => {
     if (!files.length) return;
-    const batch = files.map((file) => ({ clientId: crypto.randomUUID(), file }));
+    const batch = files.map((file) => ({
+      clientId: crypto.randomUUID(),
+      file,
+    }));
     let scheduled: { clientId: string; file: File }[] = [];
 
     flushSync(() => {
       setStagedAttachments((prev) => {
         const room = Math.max(0, CHAT_MAX_ATTACHMENTS - prev.length);
         scheduled = batch.slice(0, room);
-        const newRows: StagedAttachment[] = scheduled.map(({ clientId, file }) => {
-          const mime = effectiveMimeForChatFile(file);
-          return {
-            clientId,
-            url: null,
-            kind: mimeToAttachmentKind(mime),
-            fileName: file.name,
-            mimeType: file.type || mime,
-            byteSize: file.size,
-            uploading: true,
-          };
-        });
+        const newRows: StagedAttachment[] = scheduled.map(
+          ({ clientId, file }) => {
+            const mime = effectiveMimeForChatFile(file);
+            return {
+              clientId,
+              url: null,
+              kind: mimeToAttachmentKind(mime),
+              fileName: file.name,
+              mimeType: file.type || mime,
+              byteSize: file.size,
+              uploading: true,
+            };
+          },
+        );
         return [...prev, ...newRows];
       });
     });
 
     if (scheduled.length < batch.length && scheduled.length > 0) {
-      toast.info(`You can add up to ${CHAT_MAX_ATTACHMENTS} files per message.`);
+      toast.info(
+        `You can add up to ${CHAT_MAX_ATTACHMENTS} files per message.`,
+      );
     }
 
     if (scheduled.length === 0) {
@@ -186,44 +253,60 @@ export default function MessagePageShell({
         const msg = `Max ${CHAT_MAX_FILE_BYTES / (1024 * 1024)} MB per file.`;
         setStagedAttachments((prev) =>
           prev.map((r) =>
-            r.clientId === clientId ? { ...r, uploading: false, error: msg } : r,
+            r.clientId === clientId
+              ? { ...r, uploading: false, error: msg }
+              : r,
           ),
         );
         toast.error(msg);
         continue;
       }
       try {
+        const policyErr = assertChatUploadAllowed(file);
+        if (policyErr) throw new Error(policyErr);
+
+        // 1. Get signature
+        const sigRes = await fetch("/api/upload", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "getSignature", folder: "messages" }),
+        });
+        const sigData = await sigRes.json();
+        if (!sigRes.ok) {
+          throw new Error(sigData.error || "Failed to get upload signature");
+        }
+
+        // 2. Upload directly to Cloudinary
         const body = new FormData();
         body.append("file", file);
-        body.append("originalName", file.name || "upload");
+        body.append("api_key", sigData.apiKey);
+        body.append("timestamp", sigData.timestamp.toString());
+        body.append("signature", sigData.signature);
         body.append("folder", "messages");
-        const res = await fetch("/api/upload", {
-          method: "POST",
-          body,
-          credentials: "same-origin",
-        });
-        const data = (await res.json().catch(() => ({}))) as {
-          error?: string;
-          url?: string;
-          kind?: ChatAttachmentKind;
-          bytes?: number;
-          fileName?: string | null;
-          mimeType?: string | null;
-        };
+
+        const res = await fetch(
+          `https://api.cloudinary.com/v1_1/${sigData.cloudName}/auto/upload`,
+          { method: "POST", body }
+        );
+        const data = await res.json();
         if (!res.ok) {
-          throw new Error(data.error || "Upload failed");
+          throw new Error(data.error?.message || "Upload failed");
         }
-        if (!data.url) throw new Error("Upload failed");
+        if (!data.secure_url) throw new Error("Upload failed");
+
+        const mime = effectiveMimeForChatFile(file);
+        const resolvedKind = cloudinaryResourceToKind(data.resource_type, mime);
+
         setStagedAttachments((prev) =>
           prev.map((r) =>
             r.clientId === clientId
               ? {
                   ...r,
-                  url: data.url!,
-                  kind: data.kind ?? r.kind,
+                  url: data.secure_url,
+                  kind: resolvedKind,
                   byteSize: data.bytes ?? file.size,
-                  mimeType: data.mimeType ?? file.type ?? null,
-                  fileName: data.fileName ?? file.name,
+                  mimeType: mime,
+                  fileName: file.name,
                   uploading: false,
                   error: undefined,
                 }
@@ -234,7 +317,9 @@ export default function MessagePageShell({
         const msg = err instanceof Error ? err.message : "Upload failed";
         setStagedAttachments((prev) =>
           prev.map((r) =>
-            r.clientId === clientId ? { ...r, uploading: false, error: msg } : r,
+            r.clientId === clientId
+              ? { ...r, uploading: false, error: msg }
+              : r,
           ),
         );
         toast.error(msg);
@@ -274,6 +359,33 @@ export default function MessagePageShell({
         toast.error(res.error);
         return;
       }
+      
+      // Optimistic update
+      const newMessage: MessageDTO = {
+        id: "temp-" + Date.now(),
+        content: composer,
+        snippetCode: snip || null,
+        snippetLang: snip ? snippetLang : null,
+        createdAt: new Date().toISOString(),
+        senderId: currentUser.id,
+        isRead: false,
+        attachments: ready.map((a, i) => ({
+          id: "temp-att-" + i,
+          kind: a.kind,
+          url: a.url!,
+          fileName: a.fileName ?? null,
+          mimeType: a.mimeType ?? null,
+          byteSize: a.byteSize ?? null,
+        })),
+        sender: {
+          id: currentUser.id,
+          name: currentUser.name,
+          username: currentUser.username,
+          image: currentUser.image,
+        }
+      };
+      setMessages((prev) => [...prev, newMessage]);
+
       setComposer("");
       setSnippetCode("");
       setSnippetOpen(false);
@@ -290,7 +402,9 @@ export default function MessagePageShell({
     Boolean(selectedId) &&
     !uploadingAttachment &&
     !attachmentError &&
-    Boolean(composer.trim() || snippetCode.trim() || readyAttachments.length > 0);
+    Boolean(
+      composer.trim() || snippetCode.trim() || readyAttachments.length > 0,
+    );
 
   const onKeyDownComposer = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && !e.shiftKey) {
@@ -340,11 +454,7 @@ export default function MessagePageShell({
               </div>
               <button
                 type="button"
-                onClick={() =>
-                  toast.info(
-                    "Tokens have reached their limit Please try again later.",
-                  )
-                }
+                onClick={() => setIsAIChatOpen(true)}
                 className="flex w-full items-center gap-3 rounded-xl border border-primary-500/20 bg-gradient-to-br from-primary-500/10 to-dark-3/40 p-3 text-left transition hover:border-primary-500/35 hover:from-primary-500/15 md:p-3.5"
               >
                 <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary-500/15 text-primary-500">
@@ -352,10 +462,28 @@ export default function MessagePageShell({
                 </span>
                 <span className="min-w-0 flex-1">
                   <span className="block small-semibold text-light-1 md:base-medium">
-                    Professional chatbot
+                    AI Assistant
                   </span>
                   <span className="mt-0.5 block tiny-medium leading-snug text-light-4">
-                    Context-aware help for code and projects
+                    Powered by Groq  - Ask me anything!
+                  </span>
+                </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setIsCodeEditorOpen(true)}
+                className="flex w-full items-center gap-3 rounded-xl border border-purple-500/20 bg-gradient-to-br from-purple-500/10 to-dark-3/40 p-3 text-left transition hover:border-purple-500/35 hover:from-purple-500/15 md:p-3.5"
+              >
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-purple-500/15 text-purple-500">
+                  <Code2 className="h-5 w-5" aria-hidden />
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block small-semibold text-light-1 md:base-medium">
+                    Advanced Code Editor
+                  </span>
+                  <span className="mt-0.5 block tiny-medium leading-snug text-light-4">
+                    AI-powered development environment
                   </span>
                 </span>
               </button>
@@ -392,7 +520,9 @@ export default function MessagePageShell({
                     }`}
                   >
                     <Image
-                      src={c.otherUser.image ?? "/icons/profile-placeholder.svg"}
+                      src={
+                        c.otherUser.image ?? "/icons/profile-placeholder.svg"
+                      }
                       alt=""
                       width={56}
                       height={56}
@@ -403,8 +533,15 @@ export default function MessagePageShell({
                         <p className="small-semibold truncate text-light-1 md:base-semibold lg:text-lg lg:font-semibold">
                           {displayName(c.otherUser)}
                         </p>
-                        <span className="tiny-medium shrink-0 text-light-4 sm:small-regular">
-                          {shortRelativeTime(c.lastMessage?.createdAt ?? c.updatedAt)}
+                        <span className="tiny-medium shrink-0 text-light-4 sm:small-regular flex items-center gap-2">
+                          {c.unreadCount > 0 && (
+                            <span className="flex h-5 min-w-[20px] items-center justify-center rounded-full bg-primary-500 text-[11px] font-bold text-white">
+                              {c.unreadCount > 99 ? "99+" : c.unreadCount}
+                            </span>
+                          )}
+                          {shortRelativeTime(
+                            c.lastMessage?.createdAt ?? c.updatedAt,
+                          )}
                         </span>
                       </div>
                       <p className="tiny-medium truncate text-light-3 sm:small-regular">
@@ -464,10 +601,7 @@ export default function MessagePageShell({
                   </div>
                 </div>
 
-                <div
-                  ref={threadBodyRef}
-                  className="message-thread-body"
-                >
+                <div ref={threadBodyRef} className="message-thread-body">
                   {loadingThread && messages.length === 0 ? (
                     <p className="small-regular text-light-4">Loading…</p>
                   ) : messages.length === 0 ? (
@@ -489,11 +623,12 @@ export default function MessagePageShell({
                   ) : (
                     <div className="flex flex-col gap-3">
                       {messages.map((m) => {
-                        const mine = m.senderId === currentUserId;
+                        const mine = m.senderId === currentUser.id;
                         const showText = Boolean(m.content.trim());
                         const showSnippet = Boolean(m.snippetCode?.trim());
                         const showAttachments =
-                          Array.isArray(m.attachments) && m.attachments.length > 0;
+                          Array.isArray(m.attachments) &&
+                          m.attachments.length > 0;
                         return (
                           <div
                             key={m.id}
@@ -528,13 +663,35 @@ export default function MessagePageShell({
                                 />
                               </div>
                             )}
-                            <p
-                              className={`tiny-medium md:small-regular ${
-                                mine ? "text-light-4" : "text-light-4"
-                              }`}
-                            >
-                              {shortRelativeTime(m.createdAt)}
-                            </p>
+                            {mine && (
+                              <div className="flex items-center gap-1 mt-1 justify-end">
+                                <span className="tiny-medium text-light-4/60">
+                                  {new Date(m.createdAt).toLocaleTimeString([], {
+                                    hour: "2-digit",
+                                    minute: "2-digit",
+                                  })}
+                                </span>
+                                {m.isRead ? (
+                                  <svg className="w-3.5 h-3.5 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7 M5 13l4 4L19 7" />
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 13l4 4L23 7" className="translate-x-1" />
+                                  </svg>
+                                ) : (
+                                  <svg className="w-3.5 h-3.5 text-light-4/60" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                  </svg>
+                                )}
+                                {m.isRead && <span className="tiny-medium text-blue-500 ml-1">Seen</span>}
+                              </div>
+                            )}
+                            {!mine && (
+                              <span className="mt-1 block tiny-medium text-light-4/60">
+                                {new Date(m.createdAt).toLocaleTimeString([], {
+                                  hour: "2-digit",
+                                  minute: "2-digit",
+                                })}
+                              </span>
+                            )}
                           </div>
                         );
                       })}
@@ -550,7 +707,10 @@ export default function MessagePageShell({
                 >
                   <div className="flex w-full min-w-0 flex-col gap-2">
                     {stagedAttachments.length > 0 && (
-                      <ul className="flex flex-wrap gap-2" aria-label="Attachments to send">
+                      <ul
+                        className="flex flex-wrap gap-2"
+                        aria-label="Attachments to send"
+                      >
                         {stagedAttachments.map((a) => (
                           <li
                             key={a.clientId}
@@ -569,7 +729,9 @@ export default function MessagePageShell({
                                 <span className="text-red-400">{a.error}</span>
                               ) : (
                                 <>
-                                  <span className="text-light-1">{a.fileName}</span>
+                                  <span className="text-light-1">
+                                    {a.fileName}
+                                  </span>
                                   {a.byteSize != null ? (
                                     <span className="text-light-4">
                                       {" "}
@@ -665,8 +827,8 @@ export default function MessagePageShell({
                     </div>
                     <p className="tiny-medium text-light-4 md:hidden">
                       Max {CHAT_MAX_ATTACHMENTS} files,{" "}
-                      {CHAT_MAX_FILE_BYTES / (1024 * 1024)} MB each · drag & drop or
-                      paste
+                      {CHAT_MAX_FILE_BYTES / (1024 * 1024)} MB each · drag &
+                      drop or paste
                     </p>
                     {snippetOpen && (
                       <div className="rounded-xl border border-primary-500/20 bg-dark-3/60 p-3 md:p-4">
@@ -716,14 +878,47 @@ export default function MessagePageShell({
                   Your messages
                 </p>
                 <p className="max-w-sm small-regular text-light-4 md:max-w-lg md:text-base lg:text-lg">
-                  Pick a conversation from the list, or open someone&apos;s profile
-                  and choose Message to start chatting.
+                  Pick a conversation from the list, or open someone&apos;s
+                  profile and choose Message to start chatting.
                 </p>
               </div>
             )}
           </section>
         </div>
       </div>
+
+      {/* AI Chat Modal */}
+      <AIChatModal
+        isOpen={isAIChatOpen}
+        onClose={() => setIsAIChatOpen(false)}
+      />
+
+      {/* Code Editor Modal */}
+      <CodeEditorModal
+        isOpen={isCodeEditorOpen}
+        onClose={() => {
+          setIsCodeEditorOpen(false);
+          if (searchParams.get("collab")) {
+            const url = new URL(window.location.href);
+            url.searchParams.delete("collab");
+            router.replace(url.pathname + url.search, { scroll: false });
+          }
+        }}
+        initialCode=""
+        language="typescript"
+        onSave={(code) => {
+          setSnippetCode(code);
+          setSnippetOpen(true);
+          toast.success("Code saved to message composer");
+        }}
+        currentUserName={
+          typeof currentUser !== "undefined" && currentUser
+            ? currentUser.name || currentUser.username || "Developer"
+            : "Developer"
+        }
+        currentUserImage={currentUser?.image || null}
+        currentUserId={currentUser?.id}
+      />
     </div>
   );
 }

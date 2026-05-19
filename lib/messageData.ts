@@ -11,6 +11,7 @@ export type ConversationListItemDTO = {
     image: string | null;
   };
   lastMessage: { preview: string; createdAt: string } | null;
+  unreadCount: number;
 };
 
 function attachmentPreviewLine(
@@ -61,10 +62,7 @@ function lastMessagePreview(msg: {
   return "Message";
 }
 
-async function createDmPair(
-  a: string,
-  b: string,
-): Promise<{ id: string }> {
+async function createDmPair(a: string, b: string): Promise<{ id: string }> {
   return db.$transaction(async (tx) => {
     const c = await tx.conversation.create({ data: {} });
     await tx.conversationParticipant.createMany({
@@ -134,7 +132,19 @@ export async function getConversationListForUser(
           createdAt: true,
           snippetCode: true,
           snippetLang: true,
-          attachments: { select: { kind: true, mimeType: true, fileName: true } },
+          attachments: {
+            select: { kind: true, mimeType: true, fileName: true },
+          },
+        },
+      },
+      _count: {
+        select: {
+          messages: {
+            where: {
+              senderId: { not: userId },
+              isRead: false,
+            },
+          },
         },
       },
     },
@@ -142,9 +152,18 @@ export async function getConversationListForUser(
   });
 
   const out: ConversationListItemDTO[] = [];
+  const seenOtherUserIds = new Set<string>();
+
   for (const c of rows) {
     const otherParticipant = c.participants.find((p) => p.userId !== userId);
     if (!otherParticipant) continue;
+
+    const otherUserId = otherParticipant.user.id;
+
+    // Skip if we already have a conversation with this user
+    if (seenOtherUserIds.has(otherUserId)) continue;
+    seenOtherUserIds.add(otherUserId);
+
     const other = otherParticipant.user;
     const last = c.messages[0];
     out.push({
@@ -162,6 +181,7 @@ export async function getConversationListForUser(
             createdAt: last.createdAt.toISOString(),
           }
         : null,
+      unreadCount: c._count?.messages || 0,
     });
   }
   return out;

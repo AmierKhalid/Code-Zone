@@ -60,6 +60,18 @@ enum NotificationType {
   FOLLOW
   LIKE
   COMMENT
+  ERROR_SOLVED
+  SOLUTION_APPROVED
+  TITLE_EARNED
+  NEW_ERROR_IN_CATEGORY
+  SOLUTION_RATED
+  COLLAB_INVITE
+}
+
+enum CollabInviteStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
 }
 
 enum MessageAttachmentKind {
@@ -100,6 +112,8 @@ model User {
 
   conversationParticipants ConversationParticipant[] @relation("ConversationParticipants")
   sentMessages             Message[]                 @relation("SentMessages")
+  collabInvitesSent        CollabInvite[]            @relation("CollabInvitesSent")
+  collabInvitesReceived    CollabInvite[]            @relation("CollabInvitesReceived")
 
   @@index([email])
   @@index([username])
@@ -235,6 +249,7 @@ model Message {
    */
   snippetCode    String?
   snippetLang    String?
+  isRead         Boolean  @default(false)
   createdAt      DateTime @default(now())
 
   conversation Conversation        @relation(fields: [conversationId], references: [id], onDelete: Cascade)
@@ -260,23 +275,42 @@ model MessageAttachment {
 }
 
 model Notification {
-  id          String           @id @default(cuid())
-  recipientId String
-  actorId     String
-  postId      String?
-  type        NotificationType
-  isRead      Boolean          @default(false)
-  createdAt   DateTime         @default(now())
+  id             String           @id @default(cuid())
+  recipientId    String
+  actorId        String
+  postId         String?
+  type           NotificationType
+  isRead         Boolean          @default(false)
+  createdAt      DateTime         @default(now())
+  collabInviteId String?          @unique
 
-  recipient User  @relation("NotificationRecipient", fields: [recipientId], references: [id], onDelete: Cascade)
-  actor     User  @relation("NotificationActor", fields: [actorId], references: [id], onDelete: Cascade)
-  post      Post? @relation("PostNotifications", fields: [postId], references: [id], onDelete: Cascade)
+  recipient    User          @relation("NotificationRecipient", fields: [recipientId], references: [id], onDelete: Cascade)
+  actor        User          @relation("NotificationActor", fields: [actorId], references: [id], onDelete: Cascade)
+  post         Post?         @relation("PostNotifications", fields: [postId], references: [id], onDelete: Cascade)
+  collabInvite CollabInvite? @relation(fields: [collabInviteId], references: [id], onDelete: Cascade)
 
-  @@unique([recipientId, actorId, postId, type])
+  @@unique([recipientId, actorId, postId, type, collabInviteId])
   @@index([recipientId, createdAt])
   @@index([recipientId, isRead])
   @@index([actorId])
   @@index([postId])
+}
+
+model CollabInvite {
+  id          String             @id @default(cuid())
+  sessionId   String
+  inviterId   String
+  inviteeId   String
+  status      CollabInviteStatus @default(PENDING)
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+
+  inviter      User          @relation("CollabInvitesSent", fields: [inviterId], references: [id], onDelete: Cascade)
+  invitee      User          @relation("CollabInvitesReceived", fields: [inviteeId], references: [id], onDelete: Cascade)
+  notification Notification?
+
+  @@index([inviteeId, status])
+  @@index([inviterId])
 }
 
 model ErrorReport {

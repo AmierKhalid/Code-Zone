@@ -5,6 +5,8 @@ import { revalidateTag } from "next/cache";
 import { db } from "@/lib/db";
 import { HOME_FEED_CACHE_TAG } from "@/lib/homeFeed";
 import { NotificationType } from "@/lib/generated/prisma/client";
+
+const NO_COLLAB_INVITE = null as unknown as string;
 import { PostValidation } from "@/lib/validations";
 import { z } from "zod";
 
@@ -42,7 +44,7 @@ export async function createPost(formData: CreatePostInput) {
       return { success: false, error: "User not found" };
     }
 
-    const tags = validatedData.tags
+    const tags = (validatedData.tags ?? "")
       .split(",")
       .map((tag) => tag.trim())
       .filter((tag) => tag.length > 0);
@@ -51,6 +53,7 @@ export async function createPost(formData: CreatePostInput) {
       data: {
         authorId: author.id,
         caption: validatedData.caption,
+        location: validatedData.location || null,
         tags: tags,
         mediaUrl: formData.mediaUrl ?? null,
       },
@@ -159,11 +162,12 @@ export async function toggleLikePost(postId: string) {
       if (post.authorId !== dbUserId) {
         await tx.notification.upsert({
           where: {
-            recipientId_actorId_postId_type: {
+            recipientId_actorId_postId_type_collabInviteId: {
               recipientId: post.authorId,
               actorId: dbUserId,
               postId,
               type: NotificationType.LIKE,
+              collabInviteId: NO_COLLAB_INVITE,
             },
           },
           update: {
@@ -175,6 +179,7 @@ export async function toggleLikePost(postId: string) {
             actorId: dbUserId,
             postId,
             type: NotificationType.LIKE,
+            collabInviteId: null,
           },
         });
       }

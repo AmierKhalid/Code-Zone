@@ -44,17 +44,37 @@ const CreatePost = () => {
       let mediaUrl: string | null = null;
       const file = values.file?.[0];
       if (file) {
-        const body = new FormData();
-        body.append("file", file);
-        const res = await fetch("/api/upload", { method: "POST", body });
-        const data = await res.json();
-        if (!res.ok) {
-          throw new Error(data?.error || "Failed to upload media");
+        // 1. Get signature
+        const sigRes = await fetch("/api/upload", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "getSignature", folder: "posts" }),
+        });
+        const sigData = await sigRes.json();
+        if (!sigRes.ok) {
+          throw new Error(sigData.error || "Failed to get upload signature");
         }
-        mediaUrl = data.url;
+
+        // 2. Upload directly to Cloudinary
+        const uploadBody = new FormData();
+        uploadBody.append("file", file);
+        uploadBody.append("api_key", sigData.apiKey);
+        uploadBody.append("timestamp", sigData.timestamp.toString());
+        uploadBody.append("signature", sigData.signature);
+        uploadBody.append("folder", "posts");
+
+        const uploadRes = await fetch(
+          `https://api.cloudinary.com/v1_1/${sigData.cloudName}/auto/upload`,
+          { method: "POST", body: uploadBody }
+        );
+        const uploadData = await uploadRes.json();
+        if (!uploadRes.ok) {
+          throw new Error(uploadData.error?.message || "Failed to upload media");
+        }
+        mediaUrl = uploadData.secure_url;
       }
 
-      const result = await createPost({ ...values, mediaUrl });
+      const result = await createPost({ ...values, file: [], mediaUrl });
 
       if (result.success) {
         toast.success("Post created successfully!");

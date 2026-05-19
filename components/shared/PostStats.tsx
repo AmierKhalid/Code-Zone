@@ -1,6 +1,8 @@
 "use client";
 
+import { memo, useCallback } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
@@ -35,12 +37,12 @@ function initialSaved(post: Post, currentUserId?: string) {
   );
 }
 
-const PostStats = ({
+const PostStats = memo(function PostStats({
   post,
   currentUserId,
   variant = "default",
   onCommentClick,
-}: PostStatsProps) => {
+}: PostStatsProps) {
   const router = useRouter();
   const [likesCount, setLikesCount] = useState(() => post.likesCount ?? 0);
   const [sharesCount, setSharesCount] = useState(() => post.sharesCount ?? 0);
@@ -54,7 +56,7 @@ const PostStats = ({
   const [savePending, startSaveTransition] = useTransition();
   const [sharePending, startShareTransition] = useTransition();
 
-  const handleLike = () => {
+  const handleLike = useCallback(() => {
     if (!currentUserId) {
       toast.error("Sign in to like posts");
       return;
@@ -79,9 +81,9 @@ const PostStats = ({
       setLikesCount(result.likesCount);
       router.refresh();
     });
-  };
+  }, [currentUserId, isLiked, likePending, likesCount, post.id, router]);
 
-  const handleSave = () => {
+  const handleSave = useCallback(() => {
     if (!currentUserId) {
       toast.error("Sign in to save posts");
       return;
@@ -101,9 +103,9 @@ const PostStats = ({
       setIsSaved(result.saved);
       router.refresh();
     });
-  };
+  }, [currentUserId, isSaved, post.id, router, savePending]);
 
-  const handleShare = () => {
+  const handleShare = useCallback(() => {
     if (sharePending) return;
 
     startShareTransition(async () => {
@@ -141,7 +143,7 @@ const PostStats = ({
         }
       }
     });
-  };
+  }, [currentUserId, post, router, sharePending]);
 
   const shareBlock = (
     <button
@@ -151,7 +153,7 @@ const PostStats = ({
       className="flex items-center gap-1.5 text-light-2 hover:text-light-1 disabled:opacity-60"
       aria-label="Share post"
     >
-      <img
+      <Image
         src="/icons/share.svg"
         alt=""
         width={20}
@@ -168,7 +170,7 @@ const PostStats = ({
     return (
       <div className="flex w-full min-w-0 items-center justify-end gap-5 z-20">
         <div className="flex shrink-0 items-center gap-3">
-          <img
+          <Image
             src={isLiked ? "/icons/liked.svg" : "/icons/like.svg"}
             alt="like"
             width={20}
@@ -180,7 +182,7 @@ const PostStats = ({
           />
           {shareBlock}
         </div>
-        <img
+        <Image
           src={isSaved ? "/icons/saved.svg" : "/icons/save.svg"}
           alt="save"
           width={20}
@@ -197,7 +199,7 @@ const PostStats = ({
   return (
     <div className="flex justify-between items-center z-20">
       <div className="flex flex-wrap items-center gap-x-2 gap-y-1 mr-5">
-        <img
+        <Image
           src={isLiked ? "/icons/liked.svg" : "/icons/like.svg"}
           alt="like"
           width={20}
@@ -214,7 +216,7 @@ const PostStats = ({
             onClick={onCommentClick}
             className="flex items-center gap-1.5 ml-1 text-light-2 hover:text-light-1"
           >
-            <img
+            <Image
               src="/icons/comment.svg"
               alt="Comments"
               width={20}
@@ -230,7 +232,7 @@ const PostStats = ({
             href={`/posts/${post.id}#post-comments`}
             className="flex items-center gap-1.5 ml-1 text-light-2 hover:text-light-1"
           >
-            <img
+            <Image
               src="/icons/comment.svg"
               alt="comment"
               width={20}
@@ -248,7 +250,7 @@ const PostStats = ({
       <div className="flex gap-2 mr-5" />
 
       <div className="flex gap-2">
-        <img
+        <Image
           src={isSaved ? "/icons/saved.svg" : "/icons/save.svg"}
           alt="save"
           width={20}
@@ -261,6 +263,6 @@ const PostStats = ({
       </div>
     </div>
   );
-};
+});
 
 export default PostStats;

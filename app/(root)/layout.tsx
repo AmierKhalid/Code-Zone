@@ -12,8 +12,9 @@ export default async function RootLayout({
   children: ReactNode;
 }) {
   const { userId } = await auth();
+
   if (!userId) {
-    redirect("/sign-in");
+    return <>{children}</>;
   }
 
   await saveUserToDB();
