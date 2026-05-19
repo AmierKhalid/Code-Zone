@@ -31,7 +31,7 @@ export default function PostDetailsActions({
 
   return (
     <div className="flex-center gap-4">
-      <Link href={`/update-post/${postId}`}>
+      <Link href={`/update-post/${postId}`} prefetch={false}>
         <img src="/icons/edit.svg" alt="edit" width={24} height={24} />
       </Link>
 

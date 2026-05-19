@@ -41,7 +41,7 @@ const PostCard = memo(function PostCard({ post, currentUserId }: PostCardProps) 
               {post.author.name || post.author.username}
             </p>
             <div className="flex-center gap-2 text-light-3">
-              <p className="subtle-semibold lg:small-regular">
+              <p suppressHydrationWarning className="subtle-semibold lg:small-regular">
                 {new Date(post.createdAt).toLocaleDateString()}
               </p>
               {post.location && (
@@ -58,6 +58,7 @@ const PostCard = memo(function PostCard({ post, currentUserId }: PostCardProps) 
 
         <Link
           href={`/update-post/${post.id}`}
+          prefetch={false}
           className={currentUserId !== post.author.id ? "hidden" : ""}
         >
           <Image src="/icons/edit.svg" alt="edit" width={20} height={20} />
