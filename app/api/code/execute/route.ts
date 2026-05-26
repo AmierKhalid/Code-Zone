@@ -1,191 +1,28 @@
 import { NextResponse } from "next/server";
-import { spawn } from "node:child_process";
-import { mkdtemp, rm, writeFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
-import ts from "typescript";
 
 type ExecuteRequest = {
   language?: string;
   code?: string;
 };
 
-const SUPPORTED: Record<string, string> = {
-  javascript: "javascript",
-  typescript: "typescript",
-  python: "python",
-  java: "java",
-  csharp: "csharp",
-  cpp: "cpp",
-  go: "go",
-  rust: "rust",
-  sql: "sql",
-  json: "json",
-  css: "css",
-  xml: "xml",
-  bash: "bash",
+// JDoodle language name + version index mapping
+// See: https://www.jdoodle.com/compiler-api/v1/list-of-all-languages
+const JDOODLE_LANGS: Record<string, { language: string; versionIndex: string }> = {
+  javascript: { language: "nodejs",    versionIndex: "4" },
+  typescript: { language: "typescript", versionIndex: "1" },
+  python:     { language: "python3",   versionIndex: "4" },
+  java:       { language: "java",      versionIndex: "5" },
+  csharp:     { language: "csharp",    versionIndex: "4" },
+  cpp:        { language: "cpp17",     versionIndex: "1" },
+  go:         { language: "go",        versionIndex: "4" },
+  rust:       { language: "rust",      versionIndex: "4" },
+  bash:       { language: "bash",      versionIndex: "5" },
 };
 
-const EXEC_TIMEOUT_MS = 8000;
+// Static/markup languages that cannot be executed
+const STATIC_LANGS = new Set(["sql", "json", "css", "xml"]);
 
-type ProcessResult = {
-  stdout: string;
-  stderr: string;
-  exitCode: number;
-};
-
-function runCommand(
-  command: string,
-  args: string[],
-  timeoutMs = EXEC_TIMEOUT_MS,
-): Promise<ProcessResult> {
-  return new Promise((resolve, reject) => {
-    const child = spawn(command, args, {
-      shell: false,
-      windowsHide: true,
-    });
-
-    let stdout = "";
-    let stderr = "";
-    let finished = false;
-
-    const timer = setTimeout(() => {
-      if (!finished) {
-        child.kill();
-        reject(new Error("Execution timed out"));
-      }
-    }, timeoutMs);
-
-    child.stdout.on("data", (chunk: Buffer) => {
-      stdout += chunk.toString("utf8");
-    });
-
-    child.stderr.on("data", (chunk: Buffer) => {
-      stderr += chunk.toString("utf8");
-    });
-
-    child.on("error", (err) => {
-      clearTimeout(timer);
-      if (!finished) {
-        finished = true;
-        reject(err);
-      }
-    });
-
-    child.on("close", (code) => {
-      clearTimeout(timer);
-      if (!finished) {
-        finished = true;
-        resolve({
-          stdout,
-          stderr,
-          exitCode: code ?? 1,
-        });
-      }
-    });
-  });
-}
-
-async function executeWithNode(source: string): Promise<ProcessResult> {
-  const dir = await mkdtemp(join(tmpdir(), "code-zone-node-"));
-  const filePath = join(dir, "script.js");
-  try {
-    await writeFile(filePath, source, "utf8");
-    return await runCommand("node", [filePath]);
-  } finally {
-    await rm(dir, { recursive: true, force: true });
-  }
-}
-
-async function executeWithPython(source: string): Promise<ProcessResult> {
-  const dir = await mkdtemp(join(tmpdir(), "code-zone-py-"));
-  const filePath = join(dir, "script.py");
-  try {
-    await writeFile(filePath, source, "utf8");
-    try {
-      return await runCommand("python", [filePath]);
-    } catch {
-      return await runCommand("py", [filePath]);
-    }
-  } finally {
-    await rm(dir, { recursive: true, force: true });
-  }
-}
-
-async function executeWithJava(source: string): Promise<ProcessResult> {
-  const dir = await mkdtemp(join(tmpdir(), "code-zone-java-"));
-  const filePath = join(dir, "Main.java");
-  try {
-    await writeFile(filePath, source, "utf8");
-    return await runCommand("java", [filePath]);
-  } finally {
-    await rm(dir, { recursive: true, force: true });
-  }
-}
-
-async function executeWithGo(source: string): Promise<ProcessResult> {
-  const dir = await mkdtemp(join(tmpdir(), "code-zone-go-"));
-  const filePath = join(dir, "main.go");
-  try {
-    await writeFile(filePath, source, "utf8");
-    return await runCommand("go", ["run", filePath]);
-  } finally {
-    await rm(dir, { recursive: true, force: true });
-  }
-}
-
-async function executeWithRust(source: string): Promise<ProcessResult> {
-  const dir = await mkdtemp(join(tmpdir(), "code-zone-rust-"));
-  const filePath = join(dir, "main.rs");
-  const outPath = join(dir, "main.exe");
-  try {
-    await writeFile(filePath, source, "utf8");
-    const compileResult = await runCommand("rustc", [filePath, "-o", outPath]);
-    if (compileResult.exitCode !== 0) return compileResult;
-    return await runCommand(outPath, []);
-  } finally {
-    await rm(dir, { recursive: true, force: true });
-  }
-}
-
-async function executeWithCpp(source: string): Promise<ProcessResult> {
-  const dir = await mkdtemp(join(tmpdir(), "code-zone-cpp-"));
-  const filePath = join(dir, "main.cpp");
-  const outPath = join(dir, "main.exe");
-  try {
-    await writeFile(filePath, source, "utf8");
-    const compileResult = await runCommand("g++", [filePath, "-o", outPath]);
-    if (compileResult.exitCode !== 0) return compileResult;
-    return await runCommand(outPath, []);
-  } finally {
-    await rm(dir, { recursive: true, force: true });
-  }
-}
-
-async function executeWithCSharp(source: string): Promise<ProcessResult> {
-  const dir = await mkdtemp(join(tmpdir(), "code-zone-cs-"));
-  const filePath = join(dir, "Program.cs");
-  const outPath = join(dir, "Program.exe");
-  try {
-    await writeFile(filePath, source, "utf8");
-    const compileResult = await runCommand("csc", [filePath, `/out:${outPath}`]);
-    if (compileResult.exitCode !== 0) return compileResult;
-    return await runCommand(outPath, []);
-  } finally {
-    await rm(dir, { recursive: true, force: true });
-  }
-}
-
-async function executeWithBash(source: string): Promise<ProcessResult> {
-  const dir = await mkdtemp(join(tmpdir(), "code-zone-bash-"));
-  const filePath = join(dir, "script.sh");
-  try {
-    await writeFile(filePath, source, "utf8");
-    return await runCommand("bash", [filePath]);
-  } finally {
-    await rm(dir, { recursive: true, force: true });
-  }
-}
+const JDOODLE_API = "https://api.jdoodle.com/v1/execute";
 
 export async function POST(req: Request) {
   try {
@@ -197,61 +34,69 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Code is required" }, { status: 400 });
     }
 
-    if (!SUPPORTED[language]) {
+    // Static/markup languages
+    if (STATIC_LANGS.has(language)) {
+      return NextResponse.json({
+        output: `"${language}" is a markup/data language and cannot be executed directly.`,
+        exitCode: 0,
+      });
+    }
+
+    const langConfig = JDOODLE_LANGS[language];
+    if (!langConfig) {
       return NextResponse.json(
         { error: `Language "${language}" is not supported yet` },
-        { status: 400 },
+        { status: 400 }
       );
     }
 
-    let result: ProcessResult;
-    if (["sql", "json", "css", "xml"].includes(language)) {
-      return NextResponse.json({
-        output: `Language "${language}" is a markup or data language and cannot be executed directly.`,
-        exitCode: 0,
-      });
-    } else if (language === "python") {
-      result = await executeWithPython(source);
-    } else if (language === "java") {
-      result = await executeWithJava(source);
-    } else if (language === "go") {
-      result = await executeWithGo(source);
-    } else if (language === "rust") {
-      result = await executeWithRust(source);
-    } else if (language === "cpp") {
-      result = await executeWithCpp(source);
-    } else if (language === "csharp") {
-      result = await executeWithCSharp(source);
-    } else if (language === "bash") {
-      result = await executeWithBash(source);
-    } else if (language === "typescript") {
-      const transpiled = ts.transpileModule(source, {
-        compilerOptions: {
-          target: ts.ScriptTarget.ES2020,
-          module: ts.ModuleKind.CommonJS,
-        },
-      }).outputText;
-      result = await executeWithNode(transpiled);
-    } else {
-      result = await executeWithNode(source);
+    const clientId     = process.env.JDOODLE_CLIENT_ID;
+    const clientSecret = process.env.JDOODLE_CLIENT_SECRET;
+
+    if (!clientId || !clientSecret) {
+      return NextResponse.json(
+        { error: "Code execution is not configured on the server. Please set JDOODLE_CLIENT_ID and JDOODLE_CLIENT_SECRET." },
+        { status: 503 }
+      );
     }
 
-    const stdout = result.stdout || "";
-    const stderr = result.stderr || "";
-    const output = (stdout + (stderr ? `\n${stderr}` : "")).trim();
-
-    return NextResponse.json({
-      output: output || "Program finished with no output.",
-      exitCode: result.exitCode ?? 0,
+    const jdoodleRes = await fetch(JDOODLE_API, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        clientId,
+        clientSecret,
+        script:       source,
+        language:     langConfig.language,
+        versionIndex: langConfig.versionIndex,
+      }),
     });
+
+    if (!jdoodleRes.ok) {
+      const errorText = await jdoodleRes.text();
+      console.error("JDoodle API error:", jdoodleRes.status, errorText);
+      return NextResponse.json(
+        { error: `Execution service error (${jdoodleRes.status}). Please try again later.` },
+        { status: 502 }
+      );
+    }
+
+    const data = await jdoodleRes.json() as {
+      output?: string;
+      statusCode?: number;
+      memory?: string;
+      cpuTime?: string;
+      error?: string;
+    };
+
+    // JDoodle returns statusCode 200 for success, non-200 for compile/runtime errors
+    const output = (data.output || "Program finished with no output.").trim();
+    const exitCode = (data.statusCode === 200 || data.statusCode === undefined) ? 0 : 1;
+
+    return NextResponse.json({ output, exitCode });
   } catch (error) {
     console.error("Code execution error:", error);
-    const message =
-      error instanceof Error ? error.message : "Failed to execute code";
-    return NextResponse.json(
-      { error: message },
-      { status: 500 },
-    );
+    const message = error instanceof Error ? error.message : "Failed to execute code";
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }
-
