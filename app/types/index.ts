@@ -1,5 +1,7 @@
 
 
+import { Categories, difficulties, tilteType } from "@/lib/enums";
+
 export type IUser = {
   id: string;
   name: string;
@@ -81,4 +83,78 @@ export type INavLink = {
   route: string;
   label: string;
 };
+
+export interface ErrorReport {
+  id: string;
+  title: string;
+  description: string | null;
+  code: string | null;
+  points: number;
+  category: Categories | null;
+  difficulty: difficulties | null;
+  isSolved: boolean;
+  createdAt: Date;
+  author: {
+    id: string;
+    username: string | null;
+    name: string | null;
+    image: string | null;
+    title: tilteType | null;
+    totalPoints: number | null;
+  };
+  solutions: Array<{
+    id: string;
+    author: {
+      id: string;
+      username: string | null;
+      name: string | null;
+      image: string | null;
+      title: tilteType | null;
+    };
+  }>;
+  _count: {
+    solutions: number;
+  };
+}
+
+export interface ErrorDetail {
+  id: string;
+  title: string;
+  description: string | null;
+  code: string | null;
+  points: number;
+  category: Categories | null;
+  difficulty: difficulties | null;
+  isSolved: boolean;
+  createdAt: Date;
+  author: {
+    id: string;
+    username: string | null;
+    name: string | null;
+    image: string | null;
+    title: tilteType | null;
+    totalPoints: number | null;
+    createdAt: Date;
+  };
+  solutions: Array<{
+    id: string;
+    content: string;
+    isApproved: boolean;
+    rate: number;
+    earnedPoints: number;
+    createdAt: Date;
+    author: {
+      id: string;
+      username: string | null;
+      name: string | null;
+      image: string | null;
+      title: tilteType | null;
+      totalPoints: number | null;
+    };
+  }>;
+  _count: {
+    solutions: number;
+  };
+}
+
 

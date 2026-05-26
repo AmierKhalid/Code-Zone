@@ -329,7 +329,7 @@ async function HomeFeed() {
   try {
     const rawPosts = await getHomePostsForFeed();
 
-    posts = rawPosts.map((p) => ({
+    posts = rawPosts.map((p: Awaited<ReturnType<typeof getHomePostsForFeed>>[number]) => ({
       ...p,
       content: p.caption,
     }));

@@ -9,7 +9,7 @@ import { createCommentNotification } from "@/app/actions/notificationActions";
 import type { Prisma } from "@/lib/generated/prisma/client";
 
 async function countCommentSubtree(
-  tx: Prisma.TransactionClient,
+  tx: typeof db,
   commentId: string,
 ): Promise<number> {
   const children = await tx.comment.findMany({
@@ -96,7 +96,8 @@ export async function createComment(input: {
     const mentionMap = await resolveMentionUserIds(mentionNames);
     const mentionedUserIds = [...new Set(mentionMap.values())];
 
-    const comment = await db.$transaction(async (tx) => {
+    const comment = await db.$transaction(async (txClient) => {
+      const tx = txClient as typeof db;
       const created = await tx.comment.create({
         data: {
           postId: input.postId,
@@ -173,7 +174,8 @@ export async function deleteComment(commentId: string) {
       return { success: false as const, error: "Forbidden" };
     }
 
-    await db.$transaction(async (tx) => {
+    await db.$transaction(async (txClient) => {
+      const tx = txClient as typeof db;
       const removeCount = await countCommentSubtree(tx, commentId);
       await tx.comment.delete({ where: { id: commentId } });
 

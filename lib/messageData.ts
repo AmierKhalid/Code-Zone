@@ -63,7 +63,8 @@ function lastMessagePreview(msg: {
 }
 
 async function createDmPair(a: string, b: string): Promise<{ id: string }> {
-  return db.$transaction(async (tx) => {
+  return db.$transaction(async (txClient) => {
+    const tx = txClient as typeof db;
     const c = await tx.conversation.create({ data: {} });
     await tx.conversationParticipant.createMany({
       data: [
@@ -91,7 +92,7 @@ export async function findOrCreateDmConversation(
     where: { userId: myUserId },
     select: { conversationId: true },
   });
-  const cids = mine.map((m) => m.conversationId);
+  const cids = mine.map((m: typeof mine[number]) => m.conversationId);
   if (cids.length === 0) {
     return createDmPair(myUserId, otherUserId);
   }
@@ -155,7 +156,7 @@ export async function getConversationListForUser(
   const seenOtherUserIds = new Set<string>();
 
   for (const c of rows) {
-    const otherParticipant = c.participants.find((p) => p.userId !== userId);
+    const otherParticipant = c.participants.find((p: typeof c.participants[number]) => p.userId !== userId);
     if (!otherParticipant) continue;
 
     const otherUserId = otherParticipant.user.id;

@@ -13,6 +13,19 @@ import {
 import { findOrCreateDmConversation } from "@/lib/messageData";
 import { isTrustedMessageAssetUrl } from "@/lib/messageAssetUrl";
 import type { ChatAttachmentKind } from "@/lib/chatAttachments";
+import type { Message, MessageAttachment } from "@/lib/generated/prisma/client";
+
+type SenderType = {
+  id: string;
+  name: string | null;
+  username: string | null;
+  image: string | null;
+};
+
+type MessageWithDetails = Message & {
+  sender: SenderType;
+  attachments: MessageAttachment[];
+};
 
 async function getDbUserId(): Promise<string | null> {
   const { userId } = await auth();
@@ -102,7 +115,7 @@ export async function fetchMessagesForConversation(
 
   return {
     success: true,
-    messages: messages.map((m) => ({
+    messages: messages.map((m: MessageWithDetails) => ({
       id: m.id,
       content: m.content,
       snippetCode: m.snippetCode,
@@ -111,7 +124,7 @@ export async function fetchMessagesForConversation(
       createdAt: m.createdAt.toISOString(),
       senderId: m.senderId,
       sender: m.sender,
-      attachments: m.attachments.map((a) => ({
+      attachments: m.attachments.map((a: MessageAttachment) => ({
         id: a.id,
         kind: a.kind as ChatAttachmentKind,
         url: a.url,
@@ -222,7 +235,8 @@ export async function sendMessage(
 
     const contentForDb = captionTrimmed;
 
-    await db.$transaction(async (tx) => {
+    await db.$transaction(async (txClient) => {
+      const tx = txClient as typeof db;
       await tx.message.create({
         data: {
           conversationId,
@@ -233,7 +247,7 @@ export async function sendMessage(
           attachments:
             attachments.length > 0
               ? {
-                  create: attachments.map((a) => ({
+                  create: attachments.map((a: SendChatAttachmentInput) => ({
                     kind: a.kind,
                     url: a.url,
                     fileName: a.fileName ?? null,

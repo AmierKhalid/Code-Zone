@@ -230,7 +230,8 @@ export async function toggleFollowUser(targetUserId: string) {
       return { success: false as const, error: "Cannot follow yourself" };
     }
 
-    const result = await db.$transaction(async (tx) => {
+    const result = await db.$transaction(async (txClient) => {
+      const tx = txClient as typeof db;
       const existing = await tx.follow.findUnique({
         where: {
           followerId_followingId: {

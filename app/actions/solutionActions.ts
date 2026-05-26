@@ -102,7 +102,8 @@ export async function createSolution(
     );
 
     // Create solution and update user points in a transaction
-    const result = await db.$transaction(async (tx) => {
+    const result = await db.$transaction(async (txClient) => {
+      const tx = txClient as typeof db;
       // Create the solution
       const solution = await tx.solution.create({
         data: {
@@ -246,7 +247,8 @@ export async function approveSolution(solutionId: string) {
     }
 
     // Approve solution and mark error as solved
-    const result = await db.$transaction(async (tx) => {
+    const result = await db.$transaction(async (txClient) => {
+      const tx = txClient as typeof db;
       // Mark error as solved and set accepted solution
       const updatedError = await tx.errorReport.update({
         where: { id: solution.errorId },

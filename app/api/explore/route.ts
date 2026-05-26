@@ -1,7 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import type { Post } from "@/lib/generated/prisma/client";
 
 type FilterType = "all" | "newest" | "oldest" | "top";
+
+type ExplorePostType = Post & {
+  author: {
+    id: string;
+    name: string | null;
+    username: string | null;
+    image: string | null;
+  };
+  likes: { id: string; userId: string }[];
+  saves: { id: string; userId: string }[];
+};
 
 export async function GET(req: NextRequest) {
   try {
@@ -59,7 +71,7 @@ export async function GET(req: NextRequest) {
 
     const hasMore = rows.length > limit;
     const sliced = hasMore ? rows.slice(0, limit) : rows;
-    const documents = sliced.map((p) => {
+    const documents = sliced.map((p: ExplorePostType) => {
       const { caption, ...rest } = p;
       return { ...rest, content: caption };
     });

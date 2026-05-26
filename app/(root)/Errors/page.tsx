@@ -18,39 +18,9 @@ import FilterPanel from "@/components/shared/errors/FilterPanel";
 import Loader from "@/components/shared/Loader";
 import { toast } from "sonner";
 import Link from "next/link";
+import { ErrorReport } from "@/app/types";
 
-interface ErrorReport {
-  id: string;
-  title: string;
-  description: string | null;
-  code: string | null;
-  points: number;
-  category: Categories | null;
-  difficulty: difficulties | null;
-  isSolved: boolean;
-  createdAt: Date;
-  author: {
-    id: string;
-    username: string | null;
-    name: string | null;
-    image: string | null;
-    title: any;
-    totalPoints: number | null;
-  };
-  solutions: Array<{
-    id: string;
-    author: {
-      id: string;
-      username: string | null;
-      name: string | null;
-      image: string | null;
-      title: any;
-    };
-  }>;
-  _count: {
-    solutions: number;
-  };
-}
+type FilterValue = Categories | difficulties | "all" | boolean | string | undefined;
 
 const ErrorsPage = () => {
   const [errors, setErrors] = useState<ErrorReport[]>([]);
@@ -78,7 +48,7 @@ const ErrorsPage = () => {
         // Apply search filter
         if (filters.search) {
           filteredErrors = filteredErrors.filter(
-            (error) =>
+            (error: ErrorReport) =>
               error.title
                 .toLowerCase()
                 .includes(filters.search.toLowerCase()) ||
@@ -127,7 +97,7 @@ let warnedAboutHunt = false;
     }
   }, []);
 
-  const handleFilterChange = (key: string, value: any) => {
+  const handleFilterChange = (key: string, value: FilterValue) => {
     setFilters((prev) => ({ ...prev, [key]: value }));
   };
 

@@ -15,46 +15,7 @@ import Loader from "@/components/shared/Loader";
 import { toast } from "sonner";
 import Link from "next/link";
 import Image from "next/image";
-
-interface ErrorDetail {
-  id: string;
-  title: string;
-  description: string | null;
-  code: string | null;
-  points: number;
-  category: Categories | null;
-  difficulty: difficulties | null;
-  isSolved: boolean;
-  createdAt: Date;
-  author: {
-    id: string;
-    username: string | null;
-    name: string | null;
-    image: string | null;
-    title: tilteType | null;
-    totalPoints: number | null;
-    createdAt: Date;
-  };
-  solutions: Array<{
-    id: string;
-    content: string;
-    isApproved: boolean;
-    rate: number;
-    earnedPoints: number;
-    createdAt: Date;
-    author: {
-      id: string;
-      username: string | null;
-      name: string | null;
-      image: string | null;
-      title: tilteType | null;
-      totalPoints: number | null;
-    };
-  }>;
-  _count: {
-    solutions: number;
-  };
-}
+import { ErrorDetail } from "@/app/types";
 
 const ErrorDetailPage = () => {
   const params = useParams();

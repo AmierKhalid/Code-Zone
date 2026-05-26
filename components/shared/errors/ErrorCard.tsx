@@ -4,40 +4,10 @@ import React from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { Categories, difficulties, tilteType } from "@/lib/enums";
+import { ErrorReport } from "@/app/types";
 
 interface ErrorCardProps {
-  error: {
-    id: string;
-    title: string;
-    description: string | null;
-    code: string | null;
-    points: number;
-    category: Categories | null;
-    difficulty: difficulties | null;
-    isSolved: boolean;
-    createdAt: Date;
-    author: {
-      id: string;
-      username: string | null;
-      name: string | null;
-      image: string | null;
-      title: tilteType | null;
-      totalPoints: number | null;
-    };
-    solutions: Array<{
-      id: string;
-      author: {
-        id: string;
-        username: string | null;
-        name: string | null;
-        image: string | null;
-        title: tilteType | null;
-      };
-    }>;
-    _count: {
-      solutions: number;
-    };
-  };
+  error: ErrorReport;
 }
 
 const ErrorCard: React.FC<ErrorCardProps> = ({ error }) => {

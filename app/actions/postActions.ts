@@ -6,7 +6,7 @@ import { db } from "@/lib/db";
 import { HOME_FEED_CACHE_TAG } from "@/lib/homeFeed";
 import { NotificationType } from "@/lib/generated/prisma/client";
 
-const NO_COLLAB_INVITE = null as unknown as string;
+
 import { PostValidation } from "@/lib/validations";
 import { z } from "zod";
 
@@ -96,7 +96,8 @@ export async function deletePostById(postId: string) {
       return { success: false as const, error: "Forbidden" };
     }
 
-    await db.$transaction(async (tx) => {
+    await db.$transaction(async (txClient) => {
+      const tx = txClient as typeof db;
       await tx.comment.deleteMany({ where: { postId } });
       await tx.like.deleteMany({ where: { postId } });
       await tx.save.deleteMany({ where: { postId } });
@@ -122,81 +123,65 @@ export async function toggleLikePost(postId: string) {
     }
     const { dbUserId } = authResult;
 
-    const outcome = await db.$transaction(async (tx) => {
+    const outcome = await db.$transaction(async (txClient) => {
+      const tx = txClient as typeof db;
       const post = await tx.post.findUnique({
         where: { id: postId },
         select: { id: true, authorId: true },
       });
-      if (!post) return { ok: false as const, reason: "not_found" as const };
+      if (!post) return { ok: false as const, reason: "not_found" as const, authorId: null };
 
       const existing = await tx.like.findFirst({
         where: { userId: dbUserId, postId },
+        select: { id: true },
       });
 
       if (existing) {
-        await tx.like.delete({ where: { id: existing.id } });
-        const updated = await tx.post.update({
-          where: { id: postId },
-          data: { likesCount: { decrement: 1 } },
-          select: { likesCount: true },
-        });
-        let nextCount = updated.likesCount;
-        if (nextCount < 0) {
-          const clamped = await tx.post.update({
+        // Unlike: delete + decrement (clamped to 0)
+        const [, updated] = await Promise.all([
+          tx.like.delete({ where: { id: existing.id } }),
+          tx.post.update({
             where: { id: postId },
-            data: { likesCount: 0 },
+            data: { likesCount: { decrement: 1 } },
             select: { likesCount: true },
-          });
-          nextCount = clamped.likesCount;
+          }),
+        ]);
+        const nextCount = Math.max(0, updated.likesCount);
+        if (updated.likesCount < 0) {
+          await tx.post.update({ where: { id: postId }, data: { likesCount: 0 } });
         }
-        return {
-          ok: true as const,
-          liked: false as const,
-          likesCount: nextCount,
-        };
+        return { ok: true as const, liked: false as const, likesCount: nextCount, authorId: post.authorId };
       }
 
-      await tx.like.create({
-        data: { userId: dbUserId, postId },
-      });
-      if (post.authorId !== dbUserId) {
-        await tx.notification.upsert({
-          where: {
-            recipientId_actorId_postId_type_collabInviteId: {
-              recipientId: post.authorId,
-              actorId: dbUserId,
-              postId,
-              type: NotificationType.LIKE,
-              collabInviteId: NO_COLLAB_INVITE,
-            },
-          },
-          update: {
-            isRead: false,
-            createdAt: new Date(),
-          },
-          create: {
-            recipientId: post.authorId,
-            actorId: dbUserId,
-            postId,
-            type: NotificationType.LIKE,
-            collabInviteId: null,
-          },
-        });
-      }
-      const updated = await tx.post.update({
-        where: { id: postId },
-        data: { likesCount: { increment: 1 } },
-        select: { likesCount: true },
-      });
-      return {
-        ok: true as const,
-        liked: true as const,
-        likesCount: updated.likesCount,
-      };
+      // Like: create + increment (parallel)
+      const [, updated] = await Promise.all([
+        tx.like.create({ data: { userId: dbUserId, postId } }),
+        tx.post.update({
+          where: { id: postId },
+          data: { likesCount: { increment: 1 } },
+          select: { likesCount: true },
+        }),
+      ]);
+      return { ok: true as const, liked: true as const, likesCount: updated.likesCount, authorId: post.authorId };
     });
 
     if (!outcome.ok) {
       return { success: false as const, error: "Post not found" };
+    }
+
+    // Fire-and-forget notification — doesn't block the response
+    if (outcome.liked && outcome.authorId && outcome.authorId !== dbUserId) {
+      db.notification.findFirst({
+        where: { recipientId: outcome.authorId, actorId: dbUserId, postId, type: NotificationType.LIKE, collabInviteId: null },
+        select: { id: true },
+      }).then((existing) => {
+        if (existing) {
+          return db.notification.update({ where: { id: existing.id }, data: { isRead: false, createdAt: new Date() } });
+        }
+        return db.notification.create({
+          data: { recipientId: outcome.authorId!, actorId: dbUserId, postId, type: NotificationType.LIKE },
+        });
+      }).catch((e) => console.error("[notification] like:", e));
     }
 
     revalidateTag(HOME_FEED_CACHE_TAG, "max");
@@ -220,7 +205,8 @@ export async function recordPostShare(postId: string) {
     }
     const { dbUserId } = authResult;
 
-    const outcome = await db.$transaction(async (tx) => {
+    const outcome = await db.$transaction(async (txClient) => {
+      const tx = txClient as typeof db;
       const post = await tx.post.findUnique({
         where: { id: postId },
         select: { id: true },
@@ -263,7 +249,8 @@ export async function toggleSavePost(postId: string) {
     }
     const { dbUserId } = authResult;
 
-    const outcome = await db.$transaction(async (tx) => {
+    const outcome = await db.$transaction(async (txClient) => {
+      const tx = txClient as typeof db;
       const post = await tx.post.findUnique({
         where: { id: postId },
         select: { id: true },

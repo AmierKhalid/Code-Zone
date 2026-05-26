@@ -11,6 +11,35 @@ import {
 import { Categories, difficulties } from "@/lib/enums"; // Import custom types for return values
 import { convertCategory, convertDifficulty, convertTitle } from "@/lib/typeConversions";
 import { z } from "zod";
+import type { ErrorReport, Solution, User, tilteType } from "@/lib/generated/prisma/client";
+
+type ErrorAuthorType = {
+  id: string;
+  username: string | null;
+  name: string | null;
+  image: string | null;
+  title: tilteType | null;
+  totalPoints: number | null;
+  createdAt: Date;
+};
+
+type SolutionAuthorType = {
+  id: string;
+  username: string | null;
+  name: string | null;
+  image: string | null;
+  title: tilteType | null;
+};
+
+type ErrorWithDetails = ErrorReport & {
+  author: ErrorAuthorType;
+  solutions: Array<Solution & {
+    author: SolutionAuthorType;
+  }>;
+  _count?: {
+    solutions: number;
+  };
+};
 
 type CreateErrorInput = z.infer<typeof ErrorValidation>;
 
@@ -171,10 +200,21 @@ export async function getErrors(filters?: {
     });
 
     // Convert Prisma types to custom types for client compatibility
-    const convertedErrors = errors.map((error) => ({
+    const convertedErrors = errors.map((error: ErrorWithDetails) => ({
       ...error,
       category: convertCategory(error.category),
       difficulty: convertDifficulty(error.difficulty),
+      author: {
+        ...error.author,
+        title: convertTitle(error.author.title),
+      },
+      solutions: error.solutions.map((solution: Solution & { author: SolutionAuthorType }) => ({
+        ...solution,
+        author: {
+          ...solution.author,
+          title: convertTitle(solution.author.title),
+        },
+      })),
     }));
 
     return { success: true, errors: convertedErrors };
@@ -240,7 +280,7 @@ export async function getErrorById(errorId: string) {
         ...error.author,
         title: convertTitle(error.author.title),
       },
-      solutions: error.solutions.map(solution => ({
+      solutions: error.solutions.map((solution: Solution & { author: SolutionAuthorType }) => ({
         ...solution,
         author: {
           ...solution.author,
@@ -284,8 +324,9 @@ export async function deleteError(errorId: string) {
     }
 
     await db.$transaction(async (tx) => {
-      await tx.solution.deleteMany({ where: { errorId } });
-      await tx.errorReport.delete({ where: { id: errorId } });
+      const transaction = tx as typeof db;
+      await transaction.solution.deleteMany({ where: { errorId } });
+      await transaction.errorReport.delete({ where: { id: errorId } });
     });
 
     revalidateTag("errors", "max");

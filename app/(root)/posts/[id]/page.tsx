@@ -112,7 +112,7 @@ export default async function PostDetailPage({
     }),
     (() => {
       const mentionIds = [
-        ...new Set(commentsFlat.flatMap((c) => c.mentionedUserIds)),
+        ...new Set(commentsFlat.flatMap((c: typeof commentsFlat[number]) => c.mentionedUserIds)),
       ];
       return mentionIds.length > 0
         ? db.user.findMany({
@@ -123,7 +123,7 @@ export default async function PostDetailPage({
     })(),
   ]);
 
-  const relatedPosts: Post[] = relatedRaw.map((p) => {
+  const relatedPosts: Post[] = relatedRaw.map((p: typeof relatedRaw[number]) => {
     const { caption: cap, ...others } = p;
     return { ...others, content: cap };
   });

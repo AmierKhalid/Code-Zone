@@ -4,6 +4,15 @@ import type { tilteType } from "@/lib/generated/prisma/client";
 
 export const LEADERBOARD_CACHE_TAG = "leaderboard";
 
+type LeaderboardRowType = {
+  id: string;
+  name: string | null;
+  username: string | null;
+  image: string | null;
+  totalPoints: number | null;
+  title: tilteType | null;
+};
+
 export type LeaderboardUserRow = {
   id: string;
   rank: number;
@@ -39,7 +48,7 @@ async function fetchLeaderboard(limit: number): Promise<LeaderboardUserRow[]> {
     },
   });
 
-  return rows.map((u, index) => ({
+  return rows.map((u: LeaderboardRowType, index: number) => ({
     id: u.id,
     rank: index + 1,
     name: u.name?.trim() || u.username || "User",

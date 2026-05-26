@@ -42,6 +42,27 @@ export interface CollaborationMessage {
   timestamp: number;
 }
 
+/** Shape of Pusher presence-channel member objects in pusher:member_added / pusher:member_removed */
+interface PusherMember {
+  id: string;
+  info: Record<string, unknown>;
+}
+
+/** Shape of the error object delivered in pusher:subscription_error */
+interface PusherSubscriptionError {
+  type: string;
+  error: string;
+  status: number;
+}
+
+/** Payload carried in "user-join" and "presence" collaboration messages */
+interface PresenceData {
+  name?: string;
+  image?: string | null;
+  role?: "Host" | "Collaborator";
+  status?: "active" | "typing" | "running";
+}
+
 export class CollaborationClient {
   private pusher: Pusher | null = null;
   private channel: PresenceChannel | null = null;
@@ -59,6 +80,7 @@ export class CollaborationClient {
   private currentCursor: { line: number; column: number } | undefined;
   private role: "Host" | "Collaborator" = "Collaborator";
   private status: "active" | "typing" | "running" = "active";
+  private _typingTimeout: ReturnType<typeof setTimeout> | null = null;
 
   constructor(
     private sessionId: string,
@@ -95,8 +117,8 @@ export class CollaborationClient {
           `presence-collab-${this.sessionId}`
         ) as PresenceChannel;
 
-        this.channel.bind("pusher:member_added", (member: any) => {
-          // We ignore pusher member events for our custom user list 
+        this.channel.bind("pusher:member_added", (_member: PusherMember) => {
+          // We ignore pusher member events for our custom user list
           // because we want each tab to have a unique ID, even if it's the same DB user.
         });
 
@@ -110,7 +132,7 @@ export class CollaborationClient {
           resolve();
         });
 
-        this.channel.bind("pusher:member_removed", (member: any) => {
+        this.channel.bind("pusher:member_removed", (_member: PusherMember) => {
           // Ignore, we rely on pruneInactiveUsers for cleanup
         });
 
@@ -118,7 +140,7 @@ export class CollaborationClient {
           this.handleIncomingMessage(data);
         });
 
-        this.channel.bind("pusher:subscription_error", (error: any) => {
+        this.channel.bind("pusher:subscription_error", (error: PusherSubscriptionError) => {
           reject(error);
         });
 
@@ -205,17 +227,18 @@ export class CollaborationClient {
       case "presence": {
         const existing = this.users.get(message.userId);
         const isNewUser = message.type === "user-join" && !existing;
+        const presenceData = message.data as PresenceData;
         const nextUser: CollaborationUser = {
           id: message.userId,
-          name: (message.data as any)?.name || existing?.name || "Collaborator",
-          image: (message.data as any)?.image || existing?.image,
+          name: presenceData?.name || existing?.name || "Collaborator",
+          image: presenceData?.image || existing?.image,
           color: existing?.color || CollaborationClient.colorForUser(message.userId),
           cursor: existing?.cursor,
           selection: existing?.selection,
           isActive: true,
           lastSeen: new Date(message.timestamp),
-          role: (message.data as any)?.role || existing?.role || "Collaborator",
-          status: (message.data as any)?.status || existing?.status || "active",
+          role: presenceData?.role || existing?.role || "Collaborator",
+          status: presenceData?.status || existing?.status || "active",
         };
         this.users.set(message.userId, nextUser);
         this.onUsersChange?.(Array.from(this.users.values()));
@@ -294,8 +317,8 @@ export class CollaborationClient {
     this.upsertLocalUser();
     this.broadcast({ type: "operation", data: operation });
     
-    clearTimeout((this as any)._typingTimeout);
-    (this as any)._typingTimeout = setTimeout(() => {
+    if (this._typingTimeout !== null) clearTimeout(this._typingTimeout);
+    this._typingTimeout = setTimeout(() => {
       this.status = "active";
       this.upsertLocalUser();
       this.broadcast({ type: "presence", data: { name: this.userName, image: this.userImage, role: this.role, status: this.status } });
@@ -307,9 +330,9 @@ export class CollaborationClient {
     this.status = "typing";
     this.upsertLocalUser();
     this.broadcast({ type: "cursor", data: cursor });
-    
-    clearTimeout((this as any)._typingTimeout);
-    (this as any)._typingTimeout = setTimeout(() => {
+
+    if (this._typingTimeout !== null) clearTimeout(this._typingTimeout);
+    this._typingTimeout = setTimeout(() => {
       this.status = "active";
       this.upsertLocalUser();
       this.broadcast({ type: "presence", data: { name: this.userName, image: this.userImage, role: this.role, status: this.status } });

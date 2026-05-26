@@ -2,6 +2,10 @@
 
 import React, { useRef, useEffect } from "react";
 import { Editor } from "@monaco-editor/react";
+import type { OnMount } from "@monaco-editor/react";
+
+type EditorInstance = Parameters<OnMount>[0];
+type MonacoInstance = Parameters<OnMount>[1];
 
 interface CodeEditorProps {
   value: string;
@@ -20,9 +24,9 @@ const CodeEditor: React.FC<CodeEditorProps> = ({
   placeholder = "",
   readOnly = false,
 }) => {
-  const editorRef = useRef<any>(null);
+  const editorRef = useRef<EditorInstance | null>(null);
 
-  const handleEditorDidMount = (editor: any, monaco: any) => {
+  const handleEditorDidMount = (editor: EditorInstance, monaco: MonacoInstance) => {
     editorRef.current = editor;
 
     // Configure editor options
@@ -34,9 +38,7 @@ const CodeEditor: React.FC<CodeEditorProps> = ({
       wordWrap: "on",
       automaticLayout: true,
       readOnly,
-      placeholder: {
-        text: placeholder,
-      },
+      placeholder,
     });
 
     // Add placeholder functionality

@@ -12,6 +12,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
+type FilterValue = Categories | difficulties | "all" | boolean | string | undefined;
+
 interface FilterPanelProps {
   filters: {
     category: Categories | "all" | undefined;
@@ -19,7 +21,7 @@ interface FilterPanelProps {
     isSolved: boolean | undefined;
     search: string;
   };
-  onFilterChange: (key: string, value: any) => void;
+  onFilterChange: (key: string, value: FilterValue) => void;
   onClearFilters: () => void;
 }
 

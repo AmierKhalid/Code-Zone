@@ -68,7 +68,8 @@ export async function sendCollabInvite(input: {
       return { success: false as const, error: "You cannot invite yourself" };
     }
 
-    await db.$transaction(async (tx) => {
+    await db.$transaction(async (txClient) => {
+      const tx = txClient as typeof db;
       const pending = await tx.collabInvite.findMany({
         where: {
           inviterId,
@@ -79,7 +80,7 @@ export async function sendCollabInvite(input: {
       });
       if (pending.length > 0) {
         await tx.collabInvite.deleteMany({
-          where: { id: { in: pending.map((p) => p.id) } },
+          where: { id: { in: pending.map((p: typeof pending[number]) => p.id) } },
         });
       }
 
