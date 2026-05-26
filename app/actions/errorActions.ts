@@ -12,6 +12,7 @@ import { Categories, difficulties } from "@/lib/enums"; // Import custom types f
 import { convertCategory, convertDifficulty, convertTitle } from "@/lib/typeConversions";
 import { z } from "zod";
 import type { ErrorReport, Solution, User, tilteType } from "@/lib/generated/prisma/client";
+import { ErrorDetail } from "@/app/types";
 
 type ErrorAuthorType = {
   id: string;
@@ -20,7 +21,7 @@ type ErrorAuthorType = {
   image: string | null;
   title: tilteType | null;
   totalPoints: number | null;
-  createdAt: Date;
+  createdAt?: Date;
 };
 
 type SolutionAuthorType = {
@@ -37,7 +38,7 @@ type ErrorWithDetails = ErrorReport & {
   solutions: Array<Solution & {
     author: SolutionAuthorType;
   }>;
-  _count?: {
+  _count: {
     solutions: number;
   };
 };
@@ -228,7 +229,10 @@ export async function getErrors(filters?: {
   }
 }
 
-export async function getErrorById(errorId: string) {
+export async function getErrorById(errorId: string): Promise<
+  | { success: true; error: ErrorDetail }
+  | { success: false; error: string }
+> {
   try {
     const error = await db.errorReport.findUnique({
       where: { id: errorId },

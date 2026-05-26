@@ -66,6 +66,7 @@ const RootLayout = ({ children }: { children: ReactNode }) => {
       >
         <ClerkProvider>
           <Analytics />
+          <SpeedInsights />
           <main className="flex min-h-0 flex-1 flex-col">{children}</main>
           <Toaster richColors position="bottom-right" />
         </ClerkProvider>
