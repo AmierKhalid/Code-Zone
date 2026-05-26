@@ -30,6 +30,7 @@ import { sendCollabInvite } from "@/app/actions/collabInviteActions";
 import { CollaborationClient, CollaborationUser } from "@/lib/collaboration";
 import CollaborationCursors from "./CollaborationCursors";
 import CollaborationPanel from "./CollaborationPanel";
+import { CHAT_SNIPPET_LANGUAGES } from "@/lib/chatSnippetLanguages";
 
 /** Remove ``` fences from AI refactor output when the model ignores instructions. */
 function stripMarkdownCodeFence(raw: string): string {
@@ -159,8 +160,14 @@ export default function AdvancedCodeEditor({
     wordWrap: "on" as const,
     bracketPairColorization: { enabled: true },
     suggest: {
-      showKeywords: false,
+      showKeywords: true,
       showSnippets: true,
+      showWords: true,
+      showFunctions: true,
+      showClasses: true,
+      showVariables: true,
+      showMethods: true,
+      showProperties: true,
     },
     codeActions: { enabled: true },
   };
@@ -180,23 +187,26 @@ export default function AdvancedCodeEditor({
       onExecute?.();
     });
 
-    monaco.languages.registerCompletionItemProvider(language, {
-      provideCompletionItems: (
-        model: Monaco.editor.ITextModel,
-        position: Monaco.Position,
-      ) => {
-        const word = model.getWordUntilPosition(position);
-        const range = {
-          startLineNumber: position.lineNumber,
-          endLineNumber: position.lineNumber,
-          startColumn: word.startColumn,
-          endColumn: word.endColumn,
-        };
-        const suggestions = getMockAISuggestions(model.getValue());
-        return {
-          suggestions: createMonacoSuggestions(suggestions, monaco, range),
-        };
-      },
+    // Register autocomplete providers for all supported languages
+    CHAT_SNIPPET_LANGUAGES.forEach((lang) => {
+      monaco.languages.registerCompletionItemProvider(lang.value, {
+        provideCompletionItems: (
+          model: Monaco.editor.ITextModel,
+          position: Monaco.Position,
+        ) => {
+          const word = model.getWordUntilPosition(position);
+          const range = {
+            startLineNumber: position.lineNumber,
+            endLineNumber: position.lineNumber,
+            startColumn: word.startColumn,
+            endColumn: word.endColumn,
+          };
+          const suggestions = getMockAISuggestions(model.getValue());
+          return {
+            suggestions: createMonacoSuggestions(suggestions, monaco, range),
+          };
+        },
+      });
     });
 
     // using the ref instead of the state var — these callbacks are set once
