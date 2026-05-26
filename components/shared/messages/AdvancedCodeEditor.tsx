@@ -417,12 +417,9 @@ export default function AdvancedCodeEditor({
       case "java": return "java";
       case "csharp": return "cs";
       case "cpp": return "cpp";
+      case "c": return "c";
       case "go": return "go";
       case "rust": return "rs";
-      case "sql": return "sql";
-      case "json": return "json";
-      case "css": return "css";
-      case "xml": return "xml";
       case "bash": return "sh";
       default: return "txt";
     }

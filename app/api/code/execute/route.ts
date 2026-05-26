@@ -5,24 +5,23 @@ type ExecuteRequest = {
   code?: string;
 };
 
-// JDoodle language name + version index mapping
-// See: https://www.jdoodle.com/compiler-api/v1/list-of-all-languages
-const JDOODLE_LANGS: Record<string, { language: string; versionIndex: string }> = {
-  javascript: { language: "nodejs",    versionIndex: "4" },
-  typescript: { language: "typescript", versionIndex: "1" },
-  python:     { language: "python3",   versionIndex: "4" },
-  java:       { language: "java",      versionIndex: "5" },
-  csharp:     { language: "csharp",    versionIndex: "4" },
-  cpp:        { language: "cpp17",     versionIndex: "1" },
-  go:         { language: "go",        versionIndex: "4" },
-  rust:       { language: "rust",      versionIndex: "4" },
-  bash:       { language: "bash",      versionIndex: "5" },
+
+const JUDGE0_API = "https://ce.judge0.com/submissions";
+
+const LANGUAGE_IDS: Record<string, number> = {
+  python:     71,  // Python 3
+  javascript: 63,  // JavaScript (Node.js)
+  typescript: 74,  // TypeScript
+  java:       62,  // Java
+  csharp:     51,  // C# 
+  cpp:        54,  // C++ 
+  c:          50,  // C 
+  go:         60,  // Go
+  rust:       73,  // Rust
+  bash:       46,  // Bash
 };
 
-// Static/markup languages that cannot be executed
-const STATIC_LANGS = new Set(["sql", "json", "css", "xml"]);
-
-const JDOODLE_API = "https://api.jdoodle.com/v1/execute";
+const EXEC_TIMEOUT_MS = 15_000; 
 
 export async function POST(req: Request) {
   try {
@@ -34,64 +33,78 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Code is required" }, { status: 400 });
     }
 
-    // Static/markup languages
-    if (STATIC_LANGS.has(language)) {
-      return NextResponse.json({
-        output: `"${language}" is a markup/data language and cannot be executed directly.`,
-        exitCode: 0,
-      });
-    }
-
-    const langConfig = JDOODLE_LANGS[language];
-    if (!langConfig) {
+    const languageId = LANGUAGE_IDS[language];
+    if (!languageId) {
       return NextResponse.json(
         { error: `Language "${language}" is not supported yet` },
         { status: 400 }
       );
     }
 
-    const clientId     = process.env.JDOODLE_CLIENT_ID;
-    const clientSecret = process.env.JDOODLE_CLIENT_SECRET;
+    // Submit to Judge0 CE with wait=true (synchronous result)
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), EXEC_TIMEOUT_MS);
 
-    if (!clientId || !clientSecret) {
-      return NextResponse.json(
-        { error: "Code execution is not configured on the server. Please set JDOODLE_CLIENT_ID and JDOODLE_CLIENT_SECRET." },
-        { status: 503 }
-      );
+    let judgeRes: Response;
+    try {
+      judgeRes = await fetch(`${JUDGE0_API}?wait=true&base64_encoded=false`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          source_code: source,
+          language_id: languageId,
+        }),
+        signal: controller.signal,
+      });
+    } catch (err) {
+      clearTimeout(timeout);
+      const message = err instanceof Error && err.name === "AbortError"
+        ? "Execution timed out. Your code may have an infinite loop."
+        : "Could not reach the code execution service. Please try again.";
+      return NextResponse.json({ error: message }, { status: 502 });
     }
 
-    const jdoodleRes = await fetch(JDOODLE_API, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        clientId,
-        clientSecret,
-        script:       source,
-        language:     langConfig.language,
-        versionIndex: langConfig.versionIndex,
-      }),
-    });
+    clearTimeout(timeout);
 
-    if (!jdoodleRes.ok) {
-      const errorText = await jdoodleRes.text();
-      console.error("JDoodle API error:", jdoodleRes.status, errorText);
+    if (!judgeRes.ok) {
       return NextResponse.json(
-        { error: `Execution service error (${jdoodleRes.status}). Please try again later.` },
+        { error: `Execution service error (${judgeRes.status}). Please try again.` },
         { status: 502 }
       );
     }
 
-    const data = await jdoodleRes.json() as {
-      output?: string;
-      statusCode?: number;
-      memory?: string;
-      cpuTime?: string;
-      error?: string;
+    const data = await judgeRes.json() as {
+      stdout?:         string | null;
+      stderr?:         string | null;
+      compile_output?: string | null;
+      message?:        string | null;
+      status?:         { id: number; description: string };
     };
 
-    // JDoodle returns statusCode 200 for success, non-200 for compile/runtime errors
-    const output = (data.output || "Program finished with no output.").trim();
-    const exitCode = (data.statusCode === 200 || data.statusCode === undefined) ? 0 : 1;
+    const statusId = data.status?.id ?? 0;
+
+    // Status IDs: 3 = Accepted, 4 = Wrong Answer, 5 = TLE, 6 = CE, 7-12 = Runtime errors
+    if (statusId === 5) {
+      return NextResponse.json({
+        output: "Time Limit Exceeded — your code ran too long.",
+        exitCode: 1,
+      });
+    }
+
+    // Build output: prefer stdout, fall back to compile error or runtime error
+    const stdout        = (data.stdout        || "").trim();
+    const stderr        = (data.stderr        || "").trim();
+    const compileOutput = (data.compile_output || "").trim();
+
+    let output = stdout;
+    if (!output && compileOutput) output = compileOutput;
+    if (!output && stderr)        output = stderr;
+    if (!output)                  output = "Program finished with no output.";
+
+    // Append stderr below stdout if both exist
+    if (stdout && stderr) output = `${stdout}\n\n${stderr}`;
+
+    const exitCode = statusId === 3 ? 0 : 1;
 
     return NextResponse.json({ output, exitCode });
   } catch (error) {

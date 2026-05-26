@@ -10,10 +10,7 @@ import csharp from "highlight.js/lib/languages/csharp";
 import cpp from "highlight.js/lib/languages/cpp";
 import go from "highlight.js/lib/languages/go";
 import rust from "highlight.js/lib/languages/rust";
-import sql from "highlight.js/lib/languages/sql";
-import json from "highlight.js/lib/languages/json";
-import css from "highlight.js/lib/languages/css";
-import xml from "highlight.js/lib/languages/xml";
+import c from "highlight.js/lib/languages/c";
 import bash from "highlight.js/lib/languages/bash";
 import plaintext from "highlight.js/lib/languages/plaintext";
 import "highlight.js/styles/github-dark.css";
@@ -39,12 +36,9 @@ function ensureLanguagesRegistered() {
   hljs.registerLanguage("java", java);
   hljs.registerLanguage("csharp", csharp);
   hljs.registerLanguage("cpp", cpp);
+  hljs.registerLanguage("c", c);
   hljs.registerLanguage("go", go);
   hljs.registerLanguage("rust", rust);
-  hljs.registerLanguage("sql", sql);
-  hljs.registerLanguage("json", json);
-  hljs.registerLanguage("css", css);
-  hljs.registerLanguage("xml", xml);
   hljs.registerLanguage("bash", bash);
   hljs.registerLanguage("plaintext", plaintext);
 }

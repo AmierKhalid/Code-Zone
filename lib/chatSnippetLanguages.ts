@@ -6,14 +6,10 @@ export const CHAT_SNIPPET_LANGUAGES = [
   { value: "java", label: "Java" },
   { value: "csharp", label: "C#" },
   { value: "cpp", label: "C++" },
+  { value: "c", label: "C" },
   { value: "go", label: "Go" },
   { value: "rust", label: "Rust" },
-  { value: "sql", label: "SQL" },
-  { value: "json", label: "JSON" },
-  { value: "css", label: "CSS" },
-  { value: "xml", label: "HTML / XML" },
-  { value: "bash", label: "Bash" }
-  ,
+  { value: "bash", label: "Bash" },
 ] as const;
 
 export type ChatSnippetLangValue = (typeof CHAT_SNIPPET_LANGUAGES)[number]["value"];
