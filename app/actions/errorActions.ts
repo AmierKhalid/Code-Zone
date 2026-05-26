@@ -29,6 +29,7 @@ type SolutionAuthorType = {
   name: string | null;
   image: string | null;
   title: tilteType | null;
+  totalPoints: number | null;
 };
 
 type ErrorWithDetails = ErrorReport & {
@@ -178,6 +179,7 @@ export async function getErrors(filters?: {
                 name: true,
                 image: true,
                 title: true,
+                totalPoints: true,
               },
             },
           },

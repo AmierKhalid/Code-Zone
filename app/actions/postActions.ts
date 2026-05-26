@@ -181,7 +181,7 @@ export async function toggleLikePost(postId: string) {
         return db.notification.create({
           data: { recipientId: outcome.authorId!, actorId: dbUserId, postId, type: NotificationType.LIKE },
         });
-      }).catch((e) => console.error("[notification] like:", e));
+      }).catch((e: unknown) => console.error("[notification] like:", e));
     }
 
     revalidateTag(HOME_FEED_CACHE_TAG, "max");

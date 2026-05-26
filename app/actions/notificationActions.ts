@@ -7,8 +7,7 @@ import {
   NotificationType,
 } from "@/lib/generated/prisma/client";
 
-/** Prisma compound-unique typings require `string` for `collabInviteId`; DB column is nullable. */
-const NO_COLLAB_INVITE = null as unknown as string;
+
 
 type CreateNotificationInput = {
   recipientId: string;
@@ -33,21 +32,24 @@ export async function createNotificationInternal(
   if (input.actorId === input.recipientId) return null;
 
   if (input.postId) {
-    return db.notification.upsert({
+    const existing = await db.notification.findFirst({
       where: {
-        recipientId_actorId_postId_type_collabInviteId: {
-          recipientId: input.recipientId,
-          actorId: input.actorId,
-          postId: input.postId,
-          type: input.type,
-          collabInviteId: NO_COLLAB_INVITE,
-        },
+        recipientId: input.recipientId,
+        actorId: input.actorId,
+        postId: input.postId,
+        type: input.type,
+        collabInviteId: null,
       },
-      update: {
-        isRead: false,
-        createdAt: new Date(),
-      },
-      create: {
+      select: { id: true },
+    });
+    if (existing) {
+      return db.notification.update({
+        where: { id: existing.id },
+        data: { isRead: false, createdAt: new Date() },
+      });
+    }
+    return db.notification.create({
+      data: {
         recipientId: input.recipientId,
         actorId: input.actorId,
         postId: input.postId,

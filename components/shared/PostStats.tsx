@@ -1,17 +1,16 @@
 "use client";
 
-import { memo, useCallback } from "react";
+import {
+  useState,
+  useTransition,
+  useCallback,
+  memo
+} from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import type { Post } from "@/app/types/index";
-import {
-  recordPostShare,
-  toggleLikePost,
-  toggleSavePost,
-} from "@/app/actions/postActions";
 import { shareOrCopyLink } from "@/lib/shareLink";
 
 type PostStatsProps = {
@@ -63,25 +62,36 @@ const PostStats = memo(function PostStats({
     }
     if (likePending) return;
 
-    const prev = { isLiked, likesCount };
-    const nextLiked = !isLiked;
-    const nextCount = nextLiked ? likesCount + 1 : Math.max(0, likesCount - 1);
-    setIsLiked(nextLiked);
-    setLikesCount(nextCount);
+    // Optimistically update
+    setIsLiked((prevLiked) => {
+      const nextLiked = !prevLiked;
+      setLikesCount((prevCount) =>
+        nextLiked ? prevCount + 1 : Math.max(0, prevCount - 1)
+      );
+      
+      startLikeTransition(async () => {
+        try {
+          const res = await fetch(`/api/posts/${post.id}/like`, { method: "POST" });
+          if (!res.ok) {
+            const errData = await res.json().catch(() => ({}));
+            throw new Error(errData.error || "Failed to update like");
+          }
+          const result = await res.json();
+          setIsLiked(result.liked);
+          setLikesCount(result.likesCount);
+        } catch (error) {
+          // Revert on error
+          setIsLiked(prevLiked);
+          setLikesCount((prevCount) =>
+            prevLiked ? prevCount : Math.max(0, prevCount - 1)
+          );
+          toast.error(error instanceof Error ? error.message : "Failed to like post");
+        }
+      });
 
-    startLikeTransition(async () => {
-      const result = await toggleLikePost(post.id);
-      if (!result.success) {
-        setIsLiked(prev.isLiked);
-        setLikesCount(prev.likesCount);
-        toast.error(result.error);
-        return;
-      }
-      setIsLiked(result.liked);
-      setLikesCount(result.likesCount);
-      router.refresh();
+      return nextLiked;
     });
-  }, [currentUserId, isLiked, likePending, likesCount, post.id, router]);
+  }, [currentUserId, likePending, post.id]);
 
   const handleSave = useCallback(() => {
     if (!currentUserId) {
@@ -90,20 +100,27 @@ const PostStats = memo(function PostStats({
     }
     if (savePending) return;
 
-    const prev = isSaved;
-    setIsSaved(!isSaved);
+    setIsSaved((prevSaved) => {
+      const nextSaved = !prevSaved;
+      
+      startSaveTransition(async () => {
+        try {
+          const res = await fetch(`/api/posts/${post.id}/save`, { method: "POST" });
+          if (!res.ok) {
+            const errData = await res.json().catch(() => ({}));
+            throw new Error(errData.error || "Failed to save post");
+          }
+          const result = await res.json();
+          setIsSaved(result.saved);
+        } catch (error) {
+          setIsSaved(prevSaved);
+          toast.error(error instanceof Error ? error.message : "Failed to save post");
+        }
+      });
 
-    startSaveTransition(async () => {
-      const result = await toggleSavePost(post.id);
-      if (!result.success) {
-        setIsSaved(prev);
-        toast.error(result.error);
-        return;
-      }
-      setIsSaved(result.saved);
-      router.refresh();
+      return nextSaved;
     });
-  }, [currentUserId, isSaved, post.id, router, savePending]);
+  }, [currentUserId, post.id, savePending]);
 
   const handleShare = useCallback(() => {
     if (sharePending) return;
@@ -125,13 +142,13 @@ const PostStats = memo(function PostStats({
         }
 
         if (currentUserId) {
-          const rec = await recordPostShare(post.id);
-          if (!rec.success) {
-            toast.error(rec.error);
-            return;
+          const res = await fetch(`/api/posts/${post.id}/share`, { method: "POST" });
+          if (!res.ok) {
+            const errData = await res.json().catch(() => ({}));
+            throw new Error(errData.error || "Failed to record share");
           }
+          const rec = await res.json();
           setSharesCount(rec.sharesCount);
-          router.refresh();
         }
       } catch (e) {
         if (e instanceof Error && e.message === "CLIPBOARD_UNAVAILABLE") {
@@ -143,7 +160,7 @@ const PostStats = memo(function PostStats({
         }
       }
     });
-  }, [currentUserId, post, router, sharePending]);
+  }, [currentUserId, post, sharePending]);
 
   const shareBlock = (
     <button
