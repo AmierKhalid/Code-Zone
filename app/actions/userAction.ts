@@ -163,6 +163,10 @@ export async function getCurrentUser(): Promise<CurrentUserResult> {
       }
     }
 
+    const adminEmailsStr = process.env.ADMIN_EMAILS || "";
+    const adminEmails = adminEmailsStr.split(",").map((e) => e.trim().toLowerCase());
+    const isAdmin = adminEmails.includes(user.email.toLowerCase());
+
     return {
       success: true,
       user: {
@@ -174,6 +178,7 @@ export async function getCurrentUser(): Promise<CurrentUserResult> {
         image: user.image,
         bio: user.bio,
         accountType: user.accountType,
+        isAdmin,
       },
     };
   } catch (error) {

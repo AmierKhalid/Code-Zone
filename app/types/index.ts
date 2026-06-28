@@ -28,6 +28,7 @@ export type CurrentUser = {
   image: string | null;
   bio: string | null;
   accountType: string;
+  isAdmin?: boolean;
 };
 
 export type verificationProps={

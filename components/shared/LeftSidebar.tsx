@@ -209,7 +209,18 @@ const LeftSidebar = () => {
         </div>
 
         <ul className="flex flex-col gap-6">
-          {sidebarLinks.map((link: INavLink) => {
+          {[
+            ...sidebarLinks,
+            ...(user?.isAdmin
+              ? [
+                  {
+                    imgURL: "/icons/posts.svg",
+                    route: "/admin",
+                    label: "Admin Panel",
+                  },
+                ]
+              : []),
+          ].map((link: INavLink) => {
             const isActive = pathname === link.route;
             return (
               <li
