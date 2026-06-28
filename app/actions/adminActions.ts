@@ -4,7 +4,7 @@ import { auth, clerkClient } from "@clerk/nextjs/server";
 import { revalidateTag } from "next/cache";
 import { db } from "@/lib/db";
 import { HOME_FEED_CACHE_TAG } from "@/lib/homeFeed";
-import { Categories, difficulties, tilteType, NotificationType } from "@/lib/generated/prisma/client";
+import { Categories, difficulties, tilteType } from "@/lib/generated/prisma/client";
 
 // Helper to check if current authenticated user is an admin
 export async function isAdminAuth(): Promise<boolean> {
